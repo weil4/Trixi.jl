@@ -5,6 +5,77 @@
 @muladd begin
 #! format: noindent
 
+@inline function subcell_limiting_kernel!(du, u,
+                                          element,
+                                          mesh::StructuredMesh{2},
+                                          nonconservative_terms::True, equations,
+                                          volume_flux_dg, volume_flux_fv,
+                                          limiter::SubcellLimiterIDP,
+                                          dg::DGSEM, cache)
+    (; derivative_split) = dg.basis
+    (; contravariant_vectors) = cache.elements
+    symmetric_flux, nonconservative_flux = volume_flux_dg
+    symmetric_flux_fv, nonconservative_flux_fv = volume_flux_fv
+
+    # Apply the symmetric flux as usual
+    subcell_limiting_kernel!(du, u, element, mesh, False(), equations,
+                             symmetric_flux, symmetric_flux_fv, limiter,
+                             dg, cache)
+
+    # TODO: Right now, I'm just using nonconservative_flux for the nonconservative part.
+    # nonconservative_flux_fv is not used.
+    # See TreeMesh.
+
+    # Calculate the remaining volume terms using the nonsymmetric generalized flux
+    for j in eachnode(dg), i in eachnode(dg)
+        u_node = get_node_vars(u, equations, dg, i, j, element)
+
+        # pull the contravariant vectors in each coordinate direction
+        Ja1_node = get_contravariant_vector(1, contravariant_vectors, i, j, element)
+        Ja2_node = get_contravariant_vector(2, contravariant_vectors, i, j, element)
+
+        # The diagonal terms are zero since the diagonal of `derivative_split`
+        # is zero. We ignore this for now.
+        # In general, nonconservative fluxes can depend on both the contravariant
+        # vectors (normal direction) at the current node and the averaged ones.
+        # Thus, we need to pass both to the nonconservative flux.
+
+        # x direction
+        integral_contribution = zero(u_node)
+        for ii in eachnode(dg)
+            u_node_ii = get_node_vars(u, equations, dg, ii, j, element)
+            # pull the contravariant vectors and compute the average
+            Ja1_node_ii = get_contravariant_vector(1, contravariant_vectors, ii, j,
+                                                   element)
+            Ja1_avg = 0.5 * (Ja1_node + Ja1_node_ii)
+            # Compute the contravariant nonconservative flux.
+            fluxtilde1 = nonconservative_flux(u_node, u_node_ii, Ja1_node, Ja1_avg,
+                                              equations)
+            integral_contribution = integral_contribution +
+                                    derivative_split[i, ii] * fluxtilde1
+        end
+
+        # y direction
+        for jj in eachnode(dg)
+            u_node_jj = get_node_vars(u, equations, dg, i, jj, element)
+            # pull the contravariant vectors and compute the average
+            Ja2_node_jj = get_contravariant_vector(2, contravariant_vectors, i, jj,
+                                                   element)
+            Ja2_avg = 0.5 * (Ja2_node + Ja2_node_jj)
+            # compute the contravariant nonconservative flux in the direction of the
+            # averaged contravariant vector
+            fluxtilde2 = nonconservative_flux(u_node, u_node_jj, Ja2_node, Ja2_avg,
+                                              equations)
+            integral_contribution = integral_contribution +
+                                    derivative_split[j, jj] * fluxtilde2
+        end
+
+        # The factor 0.5 cancels the factor 2 in the flux differencing form
+        multiply_add_to_node_vars!(du, 1.0 * 0.5, integral_contribution, equations,
+                                   dg, i, j, element)
+    end
+end
+
 @inline function calcflux_fhat!(fhat1, fhat2, u,
                                 mesh::StructuredMesh{2}, nonconservative_terms::False,
                                 equations,

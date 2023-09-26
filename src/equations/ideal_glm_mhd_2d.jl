@@ -822,6 +822,57 @@ end
     return SVector(w1, w2, w3, w4, w5, w6, w7, w8, w9)
 end
 
+@inline function cons2entropy_spec(u, equations::IdealGlmMhdEquations2D)
+    rho, rho_v1, rho_v2, rho_v3, rho_e, B1, B2, B3, psi = u
+
+    v1 = rho_v1 / rho
+    v2 = rho_v2 / rho
+    v3 = rho_v3 / rho
+    v_square = v1^2 + v2^2 + v3^2
+    inv_rho_gammap1 = (1 / rho)^(equations.gamma + 1.0)
+    inv_rho_gamma = (1 / rho)^equations.gamma
+
+    # TODO: For mu see dpdu.
+    mu_inv_2 = 1 / (2 * 1.0)
+
+    B_square = B1^2 + B2^2 + B3^2 + psi^2
+    # The derivative vector for the modified specific entropy of Guermond et al.
+    w1 = inv_rho_gammap1 *
+         (0.5 * rho * (equations.gamma + 1.0) * v_square - equations.gamma * rho_e +
+          equations.gamma * mu_inv_2 * B_square)
+
+    w2 = -rho_v1 * inv_rho_gammap1
+    w3 = -rho_v2 * inv_rho_gammap1
+    w4 = -rho_v3 * inv_rho_gammap1
+    w5 = (1 / rho)^equations.gamma
+    w6 = B1 * mu_inv_2 * inv_rho_gamma
+    w7 = B2 * mu_inv_2 * inv_rho_gamma
+    w8 = B3 * mu_inv_2 * inv_rho_gamma
+    w9 = psi * mu_inv_2 * inv_rho_gamma
+
+    # TODO: The derivative vector for other specific entropy? See Euler equations and entropy_spec.
+
+    return SVector(w1, w2, w3, w4, w5, w6, w7, w8, w9)
+end
+
+@inline function dpdu(u, equations::IdealGlmMhdEquations2D)
+    rho, rho_v1, rho_v2, rho_v3, rho_e, B1, B2, B3, psi = u
+
+    v1 = rho_v1 / rho
+    v2 = rho_v2 / rho
+    v3 = rho_v3 / rho
+    v_square = v1^2 + v2^2 + v3^2
+
+    # TODO: Last 4 values are multiplied with 1/mu.
+    # I can't find any information about mu in Trixi.
+    # Is it assumed to be 1?
+    mu_inv = 1.0
+
+    return (equations.gamma - 1.0) *
+           SVector(0.5 * v_square, -v1, -v2, -v3, 1.0, -mu_inv * B1, -mu_inv * B2,
+                   -mu_inv * B3, -mu_inv * psi)
+end
+
 # Convert entropy variables to conservative variables
 @inline function entropy2cons(w, equations::IdealGlmMhdEquations2D)
     w1, w2, w3, w4, w5, w6, w7, w8, w9 = w
@@ -847,6 +898,14 @@ end
     p = -rho / w5
 
     return prim2cons(SVector(rho, v1, v2, v3, p, B1, B2, B3, psi), equations)
+end
+
+@inline function isValidState(cons, equations::IdealGlmMhdEquations2D)
+    p = pressure(cons, equations)
+    if cons[1] <= 0.0 || p <= 0.0
+        return false
+    end
+    return true
 end
 
 # Convert primitive to conservative variables
@@ -1114,6 +1173,17 @@ end
         equations.inv_gamma_minus_one
 
     return S
+end
+
+@inline function entropy_spec(u, equations::IdealGlmMhdEquations2D)
+    rho, rho_v1, rho_v2, rho_v3, rho_e, B1, B2, B3, psi = u
+
+    # Modified specific entropy from Guermond et al. (2019)
+    s = (rho_e - 0.5 * (rho_v1^2 + rho_v2^2 + rho_v3^2) / rho) *
+        (1 / rho)^equations.gamma
+
+    # TODO: Other specific entropy? See Euler equations
+    return s
 end
 
 # Default entropy is the mathematical entropy

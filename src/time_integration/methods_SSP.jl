@@ -293,4 +293,14 @@ function calc_normal_directions!(container_bar_states, mesh::StructuredMesh, equ
 
     return nothing
 end
+
+"""
+    get_proposed_dt(i::SimpleIntegratorSSP)
+
+Gets the proposed `dt` for the next timestep.
+"""
+function get_proposed_dt(i::SimpleIntegratorSSP)
+    i.dt
+    # error("get_proposed_dt: method has not been implemented for the integrator")
+end
 end # @muladd

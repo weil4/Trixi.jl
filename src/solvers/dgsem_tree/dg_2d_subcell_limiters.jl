@@ -40,7 +40,7 @@ function calc_volume_integral!(du, u,
                                nonconservative_terms, equations,
                                volume_integral::VolumeIntegralSubcellLimiting,
                                dg::DGSEM, cache, t, boundary_conditions)
-    @unpack limiter = volume_integral
+    (; limiter, volume_flux_dg, volume_flux_fv) = volume_integral
 
     # Calculate lambdas and bar states
     @trixi_timeit timer() "calc_lambdas_bar_states!" calc_lambdas_bar_states!(u, t,
@@ -75,7 +75,7 @@ function calc_volume_integral!(du, u,
             element = element_ids_dg[idx_element]
             flux_differencing_kernel!(du, u, element, mesh,
                                       nonconservative_terms, equations,
-                                      volume_integral.volume_flux_dg, dg, cache)
+                                      volume_flux_dg, dg, cache)
         end
 
         # Loop over blended DG-FV elements
@@ -83,7 +83,7 @@ function calc_volume_integral!(du, u,
             element = element_ids_dgfv[idx_element]
             subcell_limiting_kernel!(du, u, element, mesh,
                                      nonconservative_terms, equations,
-                                     volume_integral, limiter,
+                                     volume_flux_dg, volume_flux_fv, limiter,
                                      dg, cache)
         end
     else # limiter.smoothness_indicator == false
@@ -92,7 +92,7 @@ function calc_volume_integral!(du, u,
                                                                                                 cache)
             subcell_limiting_kernel!(du, u, element, mesh,
                                      nonconservative_terms, equations,
-                                     volume_integral, limiter,
+                                     volume_flux_dg, volume_flux_fv, limiter,
                                      dg, cache)
         end
     end
@@ -102,10 +102,10 @@ end
                                           element,
                                           mesh::Union{TreeMesh{2}, StructuredMesh{2}},
                                           nonconservative_terms::False, equations,
-                                          volume_integral, limiter::SubcellLimiterIDP,
+                                          volume_flux_dg, volume_flux_fv,
+                                          limiter::SubcellLimiterIDP,
                                           dg::DGSEM, cache)
     @unpack inverse_weights = dg.basis
-    @unpack volume_flux_dg, volume_flux_fv = volume_integral
 
     # high-order DG fluxes
     @unpack fhat1_threaded, fhat2_threaded = cache
@@ -141,6 +141,57 @@ end
     end
 
     return nothing
+end
+
+@inline function subcell_limiting_kernel!(du, u,
+                                          element,
+                                          mesh::TreeMesh{2},
+                                          nonconservative_terms::True, equations,
+                                          volume_flux_dg, volume_flux_fv,
+                                          limiter::SubcellLimiterIDP,
+                                          dg::DGSEM, cache)
+    (; derivative_split) = dg.basis
+    symmetric_flux, nonconservative_flux = volume_flux_dg
+    symmetric_flux_fv, nonconservative_flux_fv = volume_flux_fv
+
+    # Apply the symmetric flux as usual
+    subcell_limiting_kernel!(du, u, element, mesh, False(), equations,
+                             symmetric_flux, symmetric_flux_fv, limiter,
+                             dg, cache)
+
+    # TODO: Right now, I'm just using nonconservative_flux for the nonconservative part.
+    # nonconservative_flux_fv is not used.
+    # Theoretically, I just have to use nonconservative_flux_fv here, right?
+    # And add (nonconservative_flux - nonconservative_flux_fv) somehow to the antidiffuive flux.
+
+    # Calculate the remaining volume terms using the nonsymmetric generalized flux
+    for j in eachnode(dg), i in eachnode(dg)
+        u_node = get_node_vars(u, equations, dg, i, j, element)
+
+        # The diagonal terms are zero since the diagonal of `derivative_split`
+        # is zero. We ignore this for now.
+
+        # x direction
+        integral_contribution = zero(u_node)
+        for ii in eachnode(dg)
+            u_node_ii = get_node_vars(u, equations, dg, ii, j, element)
+            noncons_flux1 = nonconservative_flux(u_node, u_node_ii, 1, equations)
+            integral_contribution = integral_contribution +
+                                    derivative_split[i, ii] * noncons_flux1
+        end
+
+        # y direction
+        for jj in eachnode(dg)
+            u_node_jj = get_node_vars(u, equations, dg, i, jj, element)
+            noncons_flux2 = nonconservative_flux(u_node, u_node_jj, 2, equations)
+            integral_contribution = integral_contribution +
+                                    derivative_split[j, jj] * noncons_flux2
+        end
+
+        # The factor 0.5 cancels the factor 2 in the flux differencing form
+        multiply_add_to_node_vars!(du, 1.0 * 0.5, integral_contribution, equations,
+                                   dg, i, j, element)
+    end
 end
 
 @inline function subcell_limiting_kernel!(du, u,
