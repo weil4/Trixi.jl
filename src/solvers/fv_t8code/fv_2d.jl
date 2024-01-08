@@ -256,8 +256,8 @@ function linear_reconstruction(u_, mesh, equations, solver, cache)
     return nothing
 end
 
-function evaluate_interface_values!(mesh, equations, solver, cache)
-    @unpack elements, interfaces, u_ = cache
+function evaluate_interface_values!(mesh::T8codeFVMesh, equations, solver, cache)
+    (; elements, interfaces, u_) = cache
 
     for interface in eachinterface(solver, cache)
         element = interfaces.neighbor_ids[1, interface]

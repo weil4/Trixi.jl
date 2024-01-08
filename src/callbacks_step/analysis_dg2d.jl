@@ -276,7 +276,7 @@ function integrate(func::Func, u,
 end
 
 function integrate_via_indices(func::Func, u,
-                               mesh, equations,
+                               mesh::T8codeFVMesh, equations,
                                solver::FV, cache, args...;
                                normalize = true) where {Func}
     # Initialize integral with zeros of the right shape
