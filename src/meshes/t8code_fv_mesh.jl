@@ -164,10 +164,10 @@ function output_data_to_vtu(mesh::T8codeFVMesh, equations, solver, u_, out)
 
         GC.@preserve data_ begin
             vtk_data[nvariables(equations) + v] = t8_vtk_data_field_t(T8_VTK_VECTOR,
-                                                                      NTuple{8192, Cchar
-                                                                             }(rpad("slope_$(vars[v])\0",
-                                                                                    8192,
-                                                                                    ' ')),
+                                                                      NTuple{8192,
+                                                                             Cchar}(rpad("slope_$(vars[v])\0",
+                                                                                         8192,
+                                                                                         ' ')),
                                                                       pointer(data_))
         end
     end
