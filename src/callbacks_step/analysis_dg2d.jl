@@ -313,6 +313,48 @@ function integrate_via_indices(func::Func, u,
     return integral
 end
 
+function integrate_via_indices(func::Func, u,
+                               mesh::VoronoiMesh, equations,
+                               solver::FV, cache, args...;
+                               normalize = true) where {Func}
+    # TODO
+    error("TODO: Integration for AnalysisCallback")
+
+    # # Initialize integral with zeros of the right shape
+    # integral = zero(func(u, 1, equations, solver, args...))
+    # total_volume = zero(real(mesh))
+
+    # # Use quadrature to numerically integrate over entire domain
+    # for node in eachnode(mesh, cache)
+    #     @unpack volume = cache.elements[element]
+    #     # TODO: Hier brauche ich das Volumen der Voronoi Elemente
+    #     integral += volume * func(u, element, equations, solver, args...)
+    #     total_volume += volume
+    # end
+
+    # if mpi_isparallel()
+    #     global_integral = MPI.Reduce!(Ref(integral), +, mpi_root(), mpi_comm())
+    #     total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
+    #     if mpi_isroot()
+    #         integral = convert(typeof(integral), global_integral[])
+    #         # Normalize with total volume
+    #         if normalize
+    #             integral = integral / total_volume_
+    #         end
+    #     else
+    #         integral = convert(typeof(integral), NaN * integral)
+    #         total_volume_ = total_volume # non-root processes receive nothing from reduce -> overwrite
+    #     end
+    # else
+    #     # Normalize with total volume
+    #     if normalize
+    #         integral = integral / total_volume
+    #     end
+    # end
+
+    return integral
+end
+
 function integrate(func::Func, u,
                    mesh,
                    equations, solver::FV, cache; normalize = true) where {Func}

@@ -271,5 +271,19 @@ function save_solution_file(u, time, dt, timestep,
     return filename
 end
 
+function save_solution_file(u, time, dt, timestep,
+                            mesh::VoronoiMesh,
+                            equations, solver, cache,
+                            solution_callback,
+                            element_variables = Dict{Symbol, Any}(),
+                            node_variables = Dict{Symbol, Any}();
+                            system = "")
+    @unpack output_directory = solution_callback
+
+    # TODO
+
+    return nothing
+end
+
 include("save_solution_dg.jl")
 end # @muladd

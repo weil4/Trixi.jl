@@ -63,11 +63,27 @@ function compute_coefficients!(u, func, t, mesh::T8codeFVMesh, equations,
     end
 end
 
+function compute_coefficients!(u, func, t, mesh::VoronoiMesh, equations,
+                               solver::FV, cache)
+    for node in eachnode(mesh, cache)
+        x_node = get_node_coords(cache.coordinates, equations, solver, node)
+        u_node = func(x_node, t, equations)
+        set_node_vars!(u, u_node, equations, solver, node)
+    end
+end
+
 function allocate_coefficients(mesh::T8codeFVMesh, equations, solver::FV, cache)
     # We must allocate a `Vector` in order to be able to `resize!` it (AMR).
     # cf. wrap_array
     zeros(eltype(cache.elements[1].volume),
           nvariables(equations) * nelements(mesh, solver, cache))
+end
+
+function allocate_coefficients(mesh::VoronoiMesh, equations, solver::FV, cache)
+    # We must allocate a `Vector` in order to be able to `resize!` it (AMR).
+    # cf. wrap_array
+    zeros(eltype(cache.coordinates),
+          nvariables(equations) * nnodes(mesh, cache))
 end
 
 @inline function get_node_vars(u, equations, solver::FV, element)
@@ -79,6 +95,10 @@ end
         u[v, element] = u_node[v]
     end
     return nothing
+end
+
+@inline function get_node_coords(x, equations, solver::FV, indices...)
+    SVector(ntuple(@inline(idx->x[idx, indices...]), Val(ndims(equations))))
 end
 
 @inline function get_surface_node_vars(u, equations, solver::FV, indices...)
@@ -109,6 +129,16 @@ end
     end
     unsafe_wrap(Array{eltype(u_ode), 2}, pointer(u_ode),
                 (nvariables(equations), nelements(mesh, solver, cache)))
+end
+
+@inline function wrap_array_native(u_ode::AbstractVector, mesh::VoronoiMesh, equations,
+                                   solver::FV, cache)
+    @boundscheck begin
+        @assert length(u_ode) ==
+                nvariables(equations) * nnodes(mesh, cache)
+    end
+    unsafe_wrap(Array{eltype(u_ode), 2}, pointer(u_ode),
+                (nvariables(equations), nnodes(mesh, cache)))
 end
 
 function rhs!(du, u, t, mesh::T8codeFVMesh, equations, initial_condition,
@@ -155,6 +185,70 @@ function rhs!(du, u, t, mesh::T8codeFVMesh, equations, initial_condition,
             end
         end
     end # timer
+
+    return nothing
+end
+
+function rhs!(du, u, t, mesh::VoronoiMesh, equations, initial_condition,
+              boundary_conditions, source_terms::Source, solver::FV,
+              cache) where {Source}
+    (; coordinates, element_nodes, edges_nodes, edges_elements, element_circumcenter, face_centers, face_sizes) = cache
+
+    du .= zero(eltype(du))
+
+    for node in eachnode(mesh, cache)
+        x_node = get_node_coords(coordinates, equations, solver, node)
+        u_node = get_node_vars(u, equations, solver, node)
+        edges = findall(edge -> node in edges_nodes[:, edge], axes(edges_nodes, 2))
+
+        # TODO
+        volume = 0.5
+
+        @trixi_timeit timer() "inner interfaces" for edge in edges
+            # element1 = edges_elements[1, edge]
+            # element2 = edges_elements[2, edge]
+            neighbor_node = findfirst(node_ -> node_ in edges_nodes[:, edge] &&
+                                          node_ != node, axes(edges_nodes, 2))
+            x_neighbor_node = get_node_coords(coordinates, equations, solver,
+                                              neighbor_node)
+            u_neighbor = get_node_vars(u, equations, solver, neighbor_node)
+
+            normal = x_neighbor_node - x_node
+            normal = normal / norm(normal)
+            @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
+                                                                          u_neighbor,
+                                                                          normal,
+                                                                          equations)
+            for v in eachvariable(equations)
+                du[v, node] -= (1 / volume) * face_sizes[edge] * flux[v]
+            end
+        end
+
+        @trixi_timeit timer() "boundaries" for edge in edges
+            element1 = edges_elements[1, edge]
+            element2 = edges_elements[2, edge]
+            if element2 != 0
+                continue
+            end
+            edge_center = get_node_coords(face_centers, equations, solver, edge)
+
+            boundary_size = norm(edge_center .- x_node)
+            normal = get_node_coords(element_circumcenter, equations, solver, element1) - edge_center
+
+            normal = normal / norm(normal)
+
+            u_boundary = initial_condition(x_node, t, equations)
+
+            @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
+                                                                          u_boundary,
+                                                                          normal,
+                                                                          equations)
+
+            for v in eachvariable(equations)
+                du[v, node] -= (1 / volume) * boundary_size * flux[v]
+            end
+        end
+    end
 
     return nothing
 end
@@ -307,6 +401,57 @@ function evaluate_interface_values!(mesh::T8codeFVMesh, equations, solver, cache
     return nothing
 end
 
+function evaluate_interface_values!(mesh::VoronoiMesh, equations, solver, cache)
+    (; nodes) = cache
+
+    # for interface in eachinterface(solver, cache)
+    #     element = interfaces.neighbor_ids[1, interface]
+    #     neighbor = interfaces.neighbor_ids[2, interface]
+    #     if solver.order == 1
+    #         for v in eachvariable(equations)
+    #             interfaces.u[1, v, interface] = u_[element].u[v]
+    #             interfaces.u[2, v, interface] = u_[neighbor].u[v]
+    #         end
+    #     elseif solver.order == 2
+    #         @unpack midpoint, face_midpoints = elements[element]
+    #         face = interfaces.faces[1, interface]
+    #         face_neighbor = interfaces.faces[2, interface]
+
+    #         face_midpoint = Trixi.get_variable_wrapped(face_midpoints, equations, face)
+    #         face_midpoints_neighbor = elements[neighbor].face_midpoints
+    #         face_midpoint_neighbor = Trixi.get_variable_wrapped(face_midpoints_neighbor,
+    #                                                             equations,
+    #                                                             face_neighbor)
+
+    #         for v in eachvariable(equations)
+    #             s1 = Trixi.get_variable_wrapped(u_[element].slope, equations, v)
+    #             s2 = Trixi.get_variable_wrapped(u_[neighbor].slope, equations, v)
+
+    #             s1 = dot(s1,
+    #                      (face_midpoint .- midpoint) ./ norm(face_midpoint .- midpoint))
+    #             s2 = dot(s2,
+    #                      (elements[neighbor].midpoint .- face_midpoint_neighbor) ./
+    #                      norm(elements[neighbor].midpoint .- face_midpoint_neighbor))
+    #             # Is it useful to compare such slopes in different directions? Alternatively, one could use the normal vector.
+    #             # But this is again not useful, since u_face would use the slope in normal direction. I think it looks good the way it is.
+
+    #             slope_v = solver.slope_limiter(s1, s2)
+    #             interfaces.u[1, v, interface] = u_[element].u[v] +
+    #                                             slope_v *
+    #                                             norm(face_midpoint .- midpoint)
+    #             interfaces.u[2, v, interface] = u_[neighbor].u[v] -
+    #                                             slope_v *
+    #                                             norm(elements[neighbor].midpoint .-
+    #                                                  face_midpoint_neighbor)
+    #         end
+    #     else
+    #         error("Order $(solver.order) is not supported.")
+    #     end
+    # end
+
+    return nothing
+end
+
 function average_slope_limiter(s1, s2)
     return 0.5 * s1 + 0.5 * s2
 end
@@ -324,13 +469,14 @@ function monotonized_central(s1, s2)
     return minmod(2 * s1, (s1 + s2) / 2, 2 * s2)
 end
 
-function get_element_variables!(element_variables, u, mesh::T8codeFVMesh, equations,
+function get_element_variables!(element_variables, u,
+                                mesh::Union{T8codeFVMesh, VoronoiMesh}, equations,
                                 solver, cache)
     return nothing
 end
 
-function get_node_variables!(node_variables, mesh::T8codeFVMesh, equations, solver,
-                             cache)
+function get_node_variables!(node_variables, mesh::Union{T8codeFVMesh, VoronoiMesh},
+                             equations, solver, cache)
     return nothing
 end
 

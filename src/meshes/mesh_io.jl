@@ -233,6 +233,27 @@ function save_mesh_file(mesh::T8codeMesh, output_directory, timestep, mpi_parall
     return joinpath(output_directory, "dummy_mesh.h5")
 end
 
+function save_mesh_file(mesh::VoronoiMesh, output_directory,
+                        timestep = 0)
+    # Create output directory (if it does not exist)
+    mkpath(output_directory)
+
+    filename = joinpath(output_directory, "mesh.h5")
+
+    # Open file (clobber existing content)
+    h5open(filename, "w") do file
+        # Add context information as attributes
+        # attributes(file)["mesh_type"] = get_name(mesh)
+        attributes(file)["ndims"] = ndims(mesh)
+        # attributes(file)["size"] = length(mesh)
+        # attributes(file)["mesh_filename"] = mesh.filename
+        attributes(file)["mesh_filename"] = mesh.current_filename
+        # attributes(file)["periodicity"] = collect(mesh.periodicity)
+    end
+
+    return filename
+end
+
 """
     load_mesh(restart_file::AbstractString; n_cells_max)
 
