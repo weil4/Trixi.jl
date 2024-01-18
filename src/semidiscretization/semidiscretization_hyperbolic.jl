@@ -205,6 +205,10 @@ function digest_boundary_conditions(boundary_conditions::Dict, mesh, solver, cac
     UnstructuredSortedBoundaryTypes(boundary_conditions, cache)
 end
 
+function digest_boundary_conditions(boundary_conditions::Dict, mesh::VoronoiMesh, solver, cache)
+    boundary_conditions
+end
+
 function digest_boundary_conditions(boundary_conditions::AbstractArray, mesh, solver,
                                     cache)
     throw(ArgumentError("Please use a (named) tuple instead of an (abstract) array to supply multiple boundary conditions (to improve performance)."))

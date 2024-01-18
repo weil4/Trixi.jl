@@ -175,7 +175,7 @@ function max_dt(u, t, mesh::ParallelP4estMesh{2},
     return dt
 end
 
-function max_dt(u, t, mesh,
+function max_dt(u, t, mesh::T8codeFVMesh,
                 constant_speed::False, equations, solver::FV, cache)
     dt = typemax(eltype(u))
 
@@ -193,19 +193,45 @@ function max_dt(u, t, mesh,
     return dt
 end
 
-function max_dt(u, t, mesh,
+function max_dt(u, t, mesh::T8codeFVMesh,
                 constant_speed::True, equations, solver::FV, cache)
     dt = typemax(eltype(u))
 
+    max_lambda1, max_lambda2 = max_abs_speeds(equations)
+
     for element in eachelement(mesh, solver, cache)
-        max_lambda1, max_lambda2 = max_abs_speeds(equations)
         @unpack dx = cache.elements[element]
         dt = min(dt, dx / (max_lambda1 + max_lambda2))
     end
-    # Since the speed is constant, we do the division after the for loop, right?
-    # For TreeMesh with constant speed is is done the same way. Why?
+    # Since the speed is constant, we can do the division after the `for` loop, right?
+    # For TreeMesh with constant speed it is done the like here. Why?
 
     if mpi_isparallel()
+        error("TODO")
+        dt = MPI.Allreduce!(Ref(dt), min, mpi_comm())[]
+    end
+
+    return dt
+end
+
+function max_dt(u, t, mesh::VoronoiMesh,
+                constant_speed::True, equations, solver::FV, cache)
+    dt = typemax(eltype(u))
+
+    max_lambda1, max_lambda2 = max_abs_speeds(equations)
+
+    for node in eachnode(mesh, cache)
+        # TODO: Useful idea to get dx?
+        edges = cache.nodes_edges[node]
+        dx = maximum(cache.face_sizes[edges])
+        # Considering the boundary size for dx?
+        dt = min(dt, dx / (max_lambda1 + max_lambda2))
+    end
+    # Since the speed is constant, we can do the division after the `for` loop, right?
+    # For TreeMesh with constant speed it is done the like here. Why?
+
+    if mpi_isparallel()
+        error("TODO")
         dt = MPI.Allreduce!(Ref(dt), min, mpi_comm())[]
     end
 

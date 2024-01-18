@@ -192,29 +192,30 @@ end
 function rhs!(du, u, t, mesh::VoronoiMesh, equations, initial_condition,
               boundary_conditions, source_terms::Source, solver::FV,
               cache) where {Source}
-    (; coordinates, element_nodes, edges_nodes, edges_elements, element_circumcenter, face_centers, face_sizes) = cache
+    (; coordinates, element_nodes, nodes_edges, node_boundaries, edge_boundaries, voronoi_cells_volume, edges_nodes, edges_elements, element_circumcenter, face_centers, face_sizes) = cache
 
     du .= zero(eltype(du))
 
     for node in eachnode(mesh, cache)
         x_node = get_node_coords(coordinates, equations, solver, node)
         u_node = get_node_vars(u, equations, solver, node)
-        edges = findall(edge -> node in edges_nodes[:, edge], axes(edges_nodes, 2))
+        edges = nodes_edges[node]
 
-        # TODO
-        volume = 0.5
+        volume = voronoi_cells_volume[node]
 
         @trixi_timeit timer() "inner interfaces" for edge in edges
-            # element1 = edges_elements[1, edge]
-            # element2 = edges_elements[2, edge]
-            neighbor_node = findfirst(node_ -> node_ in edges_nodes[:, edge] &&
-                                          node_ != node, axes(edges_nodes, 2))
+            if edges_nodes[1, edge] == node
+                neighbor_node = edges_nodes[2, edge]
+            else
+                neighbor_node = edges_nodes[1, edge]
+            end
+
             x_neighbor_node = get_node_coords(coordinates, equations, solver,
                                               neighbor_node)
             u_neighbor = get_node_vars(u, equations, solver, neighbor_node)
 
-            normal = x_neighbor_node - x_node
-            normal = normal / norm(normal)
+            # TODO: Save the normal vector once
+            normal = normalize(x_neighbor_node - x_node)
             @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
                                                                           u_neighbor,
                                                                           normal,
@@ -232,13 +233,18 @@ function rhs!(du, u, t, mesh::VoronoiMesh, equations, initial_condition,
             end
             edge_center = get_node_coords(face_centers, equations, solver, edge)
 
-            boundary_size = norm(edge_center .- x_node)
-            normal = get_node_coords(element_circumcenter, equations, solver, element1) - edge_center
+            boundary_size = norm(edge_center - x_node)
 
+            normal = edge_center - get_node_coords(element_circumcenter, equations, solver, element1)
             normal = normal / norm(normal)
 
-            u_boundary = initial_condition(x_node, t, equations)
-
+            boundary = edge_boundaries[edge]
+            boundary_condition_function = boundary_conditions[boundary].boundary_value_function
+            if length(node_boundaries[node]) == 1
+                u_boundary = boundary_condition_function(x_node, t, equations)
+            else # corner
+                u_boundary = boundary_condition_function(0.5 * (x_node + edge_center), t, equations)
+            end
             @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
                                                                           u_boundary,
                                                                           normal,
@@ -265,7 +271,7 @@ function reconstruction(u_, mesh, equations, solver, cache)
     return nothing
 end
 
-function linear_reconstruction(u_, mesh, equations, solver, cache)
+function linear_reconstruction(u_, mesh::T8codeFVMesh, equations, solver, cache)
     @unpack elements = cache
 
     slope = zeros(eltype(u_[1].u), nvariables(equations) * ndims(mesh))
@@ -397,57 +403,6 @@ function evaluate_interface_values!(mesh::T8codeFVMesh, equations, solver, cache
             error("Order $(solver.order) is not supported.")
         end
     end
-
-    return nothing
-end
-
-function evaluate_interface_values!(mesh::VoronoiMesh, equations, solver, cache)
-    (; nodes) = cache
-
-    # for interface in eachinterface(solver, cache)
-    #     element = interfaces.neighbor_ids[1, interface]
-    #     neighbor = interfaces.neighbor_ids[2, interface]
-    #     if solver.order == 1
-    #         for v in eachvariable(equations)
-    #             interfaces.u[1, v, interface] = u_[element].u[v]
-    #             interfaces.u[2, v, interface] = u_[neighbor].u[v]
-    #         end
-    #     elseif solver.order == 2
-    #         @unpack midpoint, face_midpoints = elements[element]
-    #         face = interfaces.faces[1, interface]
-    #         face_neighbor = interfaces.faces[2, interface]
-
-    #         face_midpoint = Trixi.get_variable_wrapped(face_midpoints, equations, face)
-    #         face_midpoints_neighbor = elements[neighbor].face_midpoints
-    #         face_midpoint_neighbor = Trixi.get_variable_wrapped(face_midpoints_neighbor,
-    #                                                             equations,
-    #                                                             face_neighbor)
-
-    #         for v in eachvariable(equations)
-    #             s1 = Trixi.get_variable_wrapped(u_[element].slope, equations, v)
-    #             s2 = Trixi.get_variable_wrapped(u_[neighbor].slope, equations, v)
-
-    #             s1 = dot(s1,
-    #                      (face_midpoint .- midpoint) ./ norm(face_midpoint .- midpoint))
-    #             s2 = dot(s2,
-    #                      (elements[neighbor].midpoint .- face_midpoint_neighbor) ./
-    #                      norm(elements[neighbor].midpoint .- face_midpoint_neighbor))
-    #             # Is it useful to compare such slopes in different directions? Alternatively, one could use the normal vector.
-    #             # But this is again not useful, since u_face would use the slope in normal direction. I think it looks good the way it is.
-
-    #             slope_v = solver.slope_limiter(s1, s2)
-    #             interfaces.u[1, v, interface] = u_[element].u[v] +
-    #                                             slope_v *
-    #                                             norm(face_midpoint .- midpoint)
-    #             interfaces.u[2, v, interface] = u_[neighbor].u[v] -
-    #                                             slope_v *
-    #                                             norm(elements[neighbor].midpoint .-
-    #                                                  face_midpoint_neighbor)
-    #         end
-    #     else
-    #         error("Order $(solver.order) is not supported.")
-    #     end
-    # end
 
     return nothing
 end

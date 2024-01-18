@@ -14,7 +14,12 @@ advection_velocity = (0.2, -0.7)
 equations = LinearScalarAdvectionEquation2D(advection_velocity)
 
 initial_condition = initial_condition_convergence_test
-initial_condition = initial_condition_constant
+
+boundary_condition = BoundaryConditionDirichlet(initial_condition)
+boundary_conditions = Dict(:x_neg => boundary_condition,
+                           :x_pos => boundary_condition,
+                           :y_neg => boundary_condition,
+                           :y_pos => boundary_condition)
 
 solver = FV(order = 1,
             surface_flux = flux_lax_friedrichs)
@@ -36,40 +41,42 @@ function boundaries(x)
     return boundaries_
 end
 
-initial_refinement_level = 1
+initial_refinement_level = 3
 mesh_ = T8codeFVMesh{2}(Trixi.cmesh_new_periodic_tri, initial_refinement_level)
 
 mesh = VoronoiMesh(mesh_, boundaries)
 
-semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
+semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
+                                    boundary_conditions = boundary_conditions)
 
-ode = semidiscretize(semi, (0.0, 1.0));
+ode = semidiscretize(semi, (0.0, 10.0));
 
 summary_callback = SummaryCallback()
 
 analysis_interval = 100
 analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
 
-# alive_callback = AliveCallback(analysis_interval=analysis_interval)
+alive_callback = AliveCallback(analysis_interval=analysis_interval)
 
-save_solution = SaveSolutionCallback(interval = 1,
+save_solution = SaveSolutionCallback(interval = 100,
                                      solution_variables = cons2prim)
 
-# stepsize_callback = StepsizeCallback(cfl=0.5)
+stepsize_callback = StepsizeCallback(cfl=0.5)
 
-callbacks = CallbackSet(summary_callback, save_solution)#, analysis_callback)# save_solution)#, , alive_callback, stepsize_callback)
+callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback, stepsize_callback)#, save_solution)
 
 ###############################################################################
 # run the simulation
 
-sol = solve(ode, Euler(),#CarpenterKennedy2N54(williamson_condition=false),
-            dt = 5.0e-2, # solve needs some value here but it will be overwritten by the stepsize_callback
+sol = solve(ode, Euler(),# CarpenterKennedy2N54(williamson_condition=false),
+            dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
             save_everystep = false, saveat = 0.1, callback = callbacks)
 summary_callback()
 
-using Plots
-# for i in eachindex(sol.u)
-#     display(plot(semi.cache.coordinates[1, :], semi.cache.coordinates[2, :], sol.u[i],
-#              st = :surface, zaxis=[1.8, 2.2]))
+# using Plots; pyplot()
+# @gif for i in eachindex(sol.u)
+#     surface(semi.cache.coordinates[1, :], semi.cache.coordinates[2, :], sol.u[i],
+#                     #=zaxis=[1.8, 2.2],=# xlabel="x", ylabel="y")
 # end
-sol
+# plt = display(surface(semi.cache.coordinates[1, :], semi.cache.coordinates[2, :], sol.u[end]))
+# scatter(semi.cache.coordinates[1, :], semi.cache.coordinates[2, :])

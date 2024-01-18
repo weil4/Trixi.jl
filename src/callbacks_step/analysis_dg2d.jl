@@ -150,7 +150,7 @@ function calc_error_norms(func, u, t, analyzer,
 end
 
 function calc_error_norms(func, u, t, analyzer,
-                          mesh, equations,
+                          mesh::T8codeFVMesh, equations,
                           initial_condition, solver::FV, cache, cache_analysis)
     # Set up data structures
     l2_error = zero(func(get_node_vars(u, equations, solver, 1), equations))
@@ -164,6 +164,52 @@ function calc_error_norms(func, u, t, analyzer,
         u_exact = initial_condition(SVector(midpoint), t, equations)
         diff = func(u_exact, equations) -
                func(get_node_vars(u, equations, solver, element), equations)
+        l2_error += diff .^ 2 * volume
+        linf_error = @. max(linf_error, abs(diff))
+        total_volume += volume
+    end
+
+    # Accumulate local results on root process
+    if mpi_isparallel()
+        global_l2_error = Vector(l2_error)
+        global_linf_error = Vector(linf_error)
+        MPI.Reduce!(global_l2_error, +, mpi_root(), mpi_comm())
+        MPI.Reduce!(global_linf_error, max, mpi_root(), mpi_comm())
+        total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
+        if mpi_isroot()
+            l2_error = convert(typeof(l2_error), global_l2_error)
+            linf_error = convert(typeof(linf_error), global_linf_error)
+            # For L2 error, divide by total volume
+            l2_error = @. sqrt(l2_error / total_volume_)
+        else
+            l2_error = convert(typeof(l2_error), NaN * global_l2_error)
+            linf_error = convert(typeof(linf_error), NaN * global_linf_error)
+        end
+    else
+        # For L2 error, divide by total volume
+        l2_error = @. sqrt(l2_error / total_volume)
+    end
+
+    return l2_error, linf_error
+end
+
+function calc_error_norms(func, u, t, analyzer,
+                          mesh::VoronoiMesh, equations,
+                          initial_condition, solver::FV, cache, cache_analysis)
+    (; coordinates, voronoi_cells_volume) = cache
+    # Set up data structures
+    l2_error = zero(func(get_node_vars(u, equations, solver, 1), equations))
+    linf_error = copy(l2_error)
+    total_volume = zero(real(mesh))
+
+    # Iterate over all dual elements for error calculations
+    for node in eachnode(mesh, cache)
+        x_node = get_node_coords(coordinates, equations, solver, node)
+        volume = voronoi_cells_volume[node]
+
+        u_exact = initial_condition(SVector(x_node), t, equations)
+        diff = func(u_exact, equations) -
+               func(get_node_vars(u, equations, solver, node), equations)
         l2_error += diff .^ 2 * volume
         linf_error = @. max(linf_error, abs(diff))
         total_volume += volume
@@ -317,40 +363,40 @@ function integrate_via_indices(func::Func, u,
                                mesh::VoronoiMesh, equations,
                                solver::FV, cache, args...;
                                normalize = true) where {Func}
-    # TODO
-    error("TODO: Integration for AnalysisCallback")
+    (; voronoi_cells_volume) = cache
 
-    # # Initialize integral with zeros of the right shape
-    # integral = zero(func(u, 1, equations, solver, args...))
-    # total_volume = zero(real(mesh))
+    # Initialize integral with zeros of the right shape
+    integral = zero(func(u, 1, equations, solver, args...))
+    total_volume = zero(real(mesh))
 
-    # # Use quadrature to numerically integrate over entire domain
-    # for node in eachnode(mesh, cache)
-    #     @unpack volume = cache.elements[element]
-    #     # TODO: Hier brauche ich das Volumen der Voronoi Elemente
-    #     integral += volume * func(u, element, equations, solver, args...)
-    #     total_volume += volume
-    # end
+    # Use quadrature to numerically integrate over entire domain
+    for node in eachnode(mesh, cache)
+        volume = voronoi_cells_volume[node]
 
-    # if mpi_isparallel()
-    #     global_integral = MPI.Reduce!(Ref(integral), +, mpi_root(), mpi_comm())
-    #     total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
-    #     if mpi_isroot()
-    #         integral = convert(typeof(integral), global_integral[])
-    #         # Normalize with total volume
-    #         if normalize
-    #             integral = integral / total_volume_
-    #         end
-    #     else
-    #         integral = convert(typeof(integral), NaN * integral)
-    #         total_volume_ = total_volume # non-root processes receive nothing from reduce -> overwrite
-    #     end
-    # else
-    #     # Normalize with total volume
-    #     if normalize
-    #         integral = integral / total_volume
-    #     end
-    # end
+        integral += volume * func(u, node, equations, solver, args...)
+        total_volume += volume
+    end
+
+    if mpi_isparallel()
+        error("TODO")
+        global_integral = MPI.Reduce!(Ref(integral), +, mpi_root(), mpi_comm())
+        total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
+        if mpi_isroot()
+            integral = convert(typeof(integral), global_integral[])
+            # Normalize with total volume
+            if normalize
+                integral = integral / total_volume_
+            end
+        else
+            integral = convert(typeof(integral), NaN * integral)
+            total_volume_ = total_volume # non-root processes receive nothing from reduce -> overwrite
+        end
+    else
+        # Normalize with total volume
+        if normalize
+            integral = integral / total_volume
+        end
+    end
 
     return integral
 end
