@@ -135,4 +135,5 @@ function create_cache_analysis(analyzer, mesh,
 end
 
 include("fv_t8code/fv_2d.jl")
+include("fv_voronoi_old/fv_2d.jl")
 end # @muladd

@@ -5,6 +5,22 @@
 @muladd begin
 #! format: noindent
 
+# This method is called when a SemidiscretizationHyperbolic is constructed.
+# It constructs the basic `cache` used throughout the simulation to compute
+# the RHS etc.
+function create_cache(mesh::T8codeFVMesh, equations,
+                      solver, RealT, uEltype)
+    elements = init_elements(mesh, RealT, uEltype)
+
+    interfaces = init_interfaces(mesh, equations, elements)
+
+    u_ = init_solution!(mesh, equations)
+
+    cache = (; elements, interfaces, u_)
+
+    return cache
+end
+
 function compute_coefficients!(u, func, t, mesh::T8codeFVMesh, equations,
                                solver::FV, cache)
     for element in eachelement(mesh, solver, cache)
@@ -14,27 +30,11 @@ function compute_coefficients!(u, func, t, mesh::T8codeFVMesh, equations,
     end
 end
 
-function compute_coefficients!(u, func, t, mesh::VoronoiMesh, equations,
-                               solver::FV, cache)
-    for node in eachnode(mesh, cache)
-        x_node = get_node_coords(cache.coordinates, equations, solver, node)
-        u_node = func(x_node, t, equations)
-        set_node_vars!(u, u_node, equations, solver, node)
-    end
-end
-
 function allocate_coefficients(mesh::T8codeFVMesh, equations, solver::FV, cache)
     # We must allocate a `Vector` in order to be able to `resize!` it (AMR).
     # cf. wrap_array
     zeros(eltype(cache.elements[1].volume),
           nvariables(equations) * nelements(mesh, solver, cache))
-end
-
-function allocate_coefficients(mesh::VoronoiMesh, equations, solver::FV, cache)
-    # We must allocate a `Vector` in order to be able to `resize!` it (AMR).
-    # cf. wrap_array
-    zeros(eltype(cache.coordinates),
-          nvariables(equations) * nnodes(mesh, cache))
 end
 
 function rhs!(du, u, t, mesh::T8codeFVMesh, equations, initial_condition,
@@ -81,76 +81,6 @@ function rhs!(du, u, t, mesh::T8codeFVMesh, equations, initial_condition,
             end
         end
     end # timer
-
-    return nothing
-end
-
-function rhs!(du, u, t, mesh::VoronoiMesh, equations, initial_condition,
-              boundary_conditions, source_terms::Source, solver::FV,
-              cache) where {Source}
-    (; coordinates, element_nodes, nodes_edges, node_boundaries, edge_boundaries, voronoi_cells_volume, edges_nodes, edges_elements, element_circumcenter, face_centers, face_sizes) = cache
-
-    du .= zero(eltype(du))
-
-    for node in eachnode(mesh, cache)
-        x_node = get_node_coords(coordinates, equations, solver, node)
-        u_node = get_node_vars(u, equations, solver, node)
-        edges = nodes_edges[node]
-
-        volume = voronoi_cells_volume[node]
-
-        @trixi_timeit timer() "inner interfaces" for edge in edges
-            if edges_nodes[1, edge] == node
-                neighbor_node = edges_nodes[2, edge]
-            else
-                neighbor_node = edges_nodes[1, edge]
-            end
-
-            x_neighbor_node = get_node_coords(coordinates, equations, solver,
-                                              neighbor_node)
-            u_neighbor = get_node_vars(u, equations, solver, neighbor_node)
-
-            # TODO: Save the normal vector once
-            normal = normalize(x_neighbor_node - x_node)
-            @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
-                                                                          u_neighbor,
-                                                                          normal,
-                                                                          equations)
-            for v in eachvariable(equations)
-                du[v, node] -= (1 / volume) * face_sizes[edge] * flux[v]
-            end
-        end
-
-        @trixi_timeit timer() "boundaries" for edge in edges
-            element1 = edges_elements[1, edge]
-            element2 = edges_elements[2, edge]
-            if element2 != 0
-                continue
-            end
-            edge_center = get_node_coords(face_centers, equations, solver, edge)
-
-            boundary_size = norm(edge_center - x_node)
-
-            normal = edge_center - get_node_coords(element_circumcenter, equations, solver, element1)
-            normal = normal / norm(normal)
-
-            boundary = edge_boundaries[edge]
-            boundary_condition_function = boundary_conditions[boundary].boundary_value_function
-            if length(node_boundaries[node]) == 1
-                u_boundary = boundary_condition_function(x_node, t, equations)
-            else # corner
-                u_boundary = boundary_condition_function(0.5 * (x_node + edge_center), t, equations)
-            end
-            @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
-                                                                          u_boundary,
-                                                                          normal,
-                                                                          equations)
-
-            for v in eachvariable(equations)
-                du[v, node] -= (1 / volume) * boundary_size * flux[v]
-            end
-        end
-    end
 
     return nothing
 end

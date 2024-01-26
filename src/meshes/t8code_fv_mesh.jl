@@ -71,6 +71,11 @@ end
 @inline Base.ndims(::T8codeFVMesh{NDIMS}) where {NDIMS} = NDIMS
 @inline Base.real(::T8codeFVMesh{NDIMS, RealT}) where {NDIMS, RealT} = RealT
 
+@inline nelementsglobal(mesh::T8codeFVMesh, solver, cache) = nelementsglobal(mesh)
+@inline function nelementsglobal(mesh::T8codeFVMesh)
+    t8_forest_get_global_num_elements(mesh.forest)
+end
+
 @inline function nelements(mesh::T8codeFVMesh, solver, cache)
     nelementsglobal(mesh, solver, cache)
 end
@@ -81,14 +86,6 @@ end
 
 @inline function eachelement(mesh::T8codeFVMesh, solver)
     Base.OneTo(mesh.number_elements)
-end
-
-@inline function nelementsglobal(mesh::T8codeFVMesh, solver, cache)
-    nelementsglobal(mesh)
-end
-
-@inline function nelementsglobal(mesh::T8codeFVMesh)
-    t8_forest_get_global_num_elements(mesh.forest)
 end
 
 function Base.show(io::IO, mesh::T8codeFVMesh)
@@ -109,19 +106,6 @@ function Base.show(io::IO, ::MIME"text/plain", mesh::T8codeFVMesh)
         summary_line(io, "#elements", nelementsglobal(mesh))
         summary_footer(io)
     end
-end
-
-function create_cache(mesh::T8codeFVMesh, equations,
-                      solver, RealT, uEltype)
-    elements = init_elements(mesh, RealT, uEltype)
-
-    interfaces = init_interfaces(mesh, equations, elements)
-
-    u_ = init_solution!(mesh, equations)
-
-    cache = (; elements, interfaces, u_)
-
-    return cache
 end
 
 # Write the forest as vtu and also write the element's volumes in the file.
