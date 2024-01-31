@@ -233,8 +233,6 @@ end
     end # limiter.density_limiter
 
     if limiter.sequential_limiter
-        var_limited = zero(eltype(mcl_bounds_delta_local))
-        error_pressure = zero(eltype(mcl_bounds_delta_local))
         for element in eachelement(solver, cache)
             for j in eachnode(solver), i in eachnode(solver)
                 # New solution u^{n+1}
@@ -262,7 +260,8 @@ end
                 #   \bar{phi}^{min} <= \bar{phi}^{Lim} / \bar{rho}^{Lim} <= \bar{phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-
+                var_limited = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
+                error_pressure = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
@@ -366,8 +365,6 @@ end
             end
         end
     elseif limiter.conservative_limiter
-        var_limited = zero(eltype(mcl_bounds_delta_local))
-        error_pressure = zero(eltype(mcl_bounds_delta_local))
         for element in eachelement(solver, cache)
             for j in eachnode(solver), i in eachnode(solver)
                 # New solution u^{n+1}
@@ -394,7 +391,8 @@ end
                 #   \bar{rho*phi}^{min} <= \bar{rho*phi}^{Lim} <= \bar{rho*phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-
+                var_limited = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
+                error_pressure = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
