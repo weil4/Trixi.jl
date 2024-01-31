@@ -173,24 +173,21 @@ end
     n_vars = nvariables(equations)
 
     if limiter.density_limiter
-        # New solution u^{n+1}
         for element in eachelement(solver, cache)
             for j in eachnode(solver), i in eachnode(solver)
+                # New solution u^{n+1}
                 mcl_bounds_delta_local[1, 1] = max(mcl_bounds_delta_local[1, 1],
                                                    var_min[1, i, j, element] -
                                                    u[1, i, j, element])
                 mcl_bounds_delta_local[2, 1] = max(mcl_bounds_delta_local[2, 1],
                                                    u[1, i, j, element] -
                                                    var_max[1, i, j, element])
-            end
-        end
 
-        # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
-        # Checking the bounds for...
-        # - density (rho):
-        #   \bar{rho}^{min} <= \bar{rho}^{Lim} <= \bar{rho}^{max}
-        for element in eachelement(solver, cache)
-            for j in eachnode(solver), i in eachnode(solver)
+                # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
+                # Checking the bounds for...
+                # - density (rho):
+                #   \bar{rho}^{min} <= \bar{rho}^{Lim} <= \bar{rho}^{max}
+
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
@@ -236,9 +233,11 @@ end
     end # limiter.density_limiter
 
     if limiter.sequential_limiter
-        # New solution u^{n+1}
+        var_limited = zero(eltype(mcl_bounds_delta_local))
+        error_pressure = zero(eltype(mcl_bounds_delta_local))
         for element in eachelement(solver, cache)
             for j in eachnode(solver), i in eachnode(solver)
+                # New solution u^{n+1}
                 for v in 2:n_vars
                     var_limited = u[v, i, j, element] / u[1, i, j, element]
                     mcl_bounds_delta_local[1, v] = max(mcl_bounds_delta_local[1, v],
@@ -256,19 +255,14 @@ end
                                                                                        n_vars + 1],
                                                                 error_pressure)
                 end
-            end
-        end
 
-        # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
-        # Checking the bounds for...
-        # - velocities and energy (phi):
-        #   \bar{phi}^{min} <= \bar{phi}^{Lim} / \bar{rho}^{Lim} <= \bar{phi}^{max}
-        # - pressure (p):
-        #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-        var_limited = zero(eltype(mcl_bounds_delta_local))
-        error_pressure = zero(eltype(mcl_bounds_delta_local))
-        for element in eachelement(solver, cache)
-            for j in eachnode(solver), i in eachnode(solver)
+                # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
+                # Checking the bounds for...
+                # - velocities and energy (phi):
+                #   \bar{phi}^{min} <= \bar{phi}^{Lim} / \bar{rho}^{Lim} <= \bar{phi}^{max}
+                # - pressure (p):
+                #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
+
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
@@ -372,9 +366,11 @@ end
             end
         end
     elseif limiter.conservative_limiter
-        # New solution u^{n+1}
+        var_limited = zero(eltype(mcl_bounds_delta_local))
+        error_pressure = zero(eltype(mcl_bounds_delta_local))
         for element in eachelement(solver, cache)
             for j in eachnode(solver), i in eachnode(solver)
+                # New solution u^{n+1}
                 for v in 2:n_vars
                     mcl_bounds_delta_local[1, v] = max(mcl_bounds_delta_local[1, v],
                                                        var_min[v, i, j, element] -
@@ -391,19 +387,14 @@ end
                                                                                        n_vars + 1],
                                                                 error_pressure)
                 end
-            end
-        end
 
-        # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
-        # Checking the bounds for...
-        # - conservative variables (phi):
-        #   \bar{rho*phi}^{min} <= \bar{rho*phi}^{Lim} <= \bar{rho*phi}^{max}
-        # - pressure (p):
-        #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-        var_limited = zero(eltype(mcl_bounds_delta_local))
-        error_pressure = zero(eltype(mcl_bounds_delta_local))
-        for element in eachelement(solver, cache)
-            for j in eachnode(solver), i in eachnode(solver)
+                # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
+                # Checking the bounds for...
+                # - conservative variables (phi):
+                #   \bar{rho*phi}^{min} <= \bar{rho*phi}^{Lim} <= \bar{rho*phi}^{max}
+                # - pressure (p):
+                #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
+
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
@@ -507,23 +498,20 @@ end
             end
         end
     elseif limiter.positivity_limiter_pressure
-        # New solution u^{n+1}
         for element in eachelement(solver, cache)
             for j in eachnode(solver), i in eachnode(solver)
+                # New solution u^{n+1}
                 error_pressure = 0.5 * (u[2, i, j, element]^2 + u[3, i, j, element]^2) -
                                  u[1, i, j, element] * u[4, i, j, element]
                 mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                    n_vars + 1],
                                                             error_pressure)
-            end
-        end
 
-        # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
-        # Checking the bounds for...
-        # - pressure (p):
-        #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-        for element in eachelement(solver, cache)
-            for j in eachnode(solver), i in eachnode(solver)
+                # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
+                # Checking the bounds for...
+                # - pressure (p):
+                #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
+
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
@@ -601,21 +589,18 @@ end
     end # limiter.positivity_limiter_pressure
 
     if limiter.positivity_limiter_density
-        # New solution u^{n+1}
+        beta = limiter.positivity_limiter_correction_factor
         for element in eachelement(solver, cache)
             for j in eachnode(solver), i in eachnode(solver)
+                # New solution u^{n+1}
                 mcl_bounds_delta_local[1, 1] = max(mcl_bounds_delta_local[1, 1],
                                                    -u[1, i, j, element])
-            end
-        end
 
-        # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
-        beta = limiter.positivity_limiter_correction_factor
-        # Checking the bounds for...
-        # - density (rho):
-        #   beta * \bar{rho} <= \bar{rho}^{Lim}
-        for element in eachelement(solver, cache)
-            for j in eachnode(solver), i in eachnode(solver)
+                # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
+                # Checking the bounds for...
+                # - density (rho):
+                #   beta * \bar{rho} <= \bar{rho}^{Lim}
+
                 # -x
                 rho_limited = (1 - beta) * bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
