@@ -260,8 +260,8 @@ end
                 #   \bar{phi}^{min} <= \bar{phi}^{Lim} / \bar{rho}^{Lim} <= \bar{phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-                var_limited = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
-                error_pressure = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
+                var_limited = zero(eltype(mcl_bounds_delta_local))
+                error_pressure = zero(eltype(mcl_bounds_delta_local))
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
@@ -391,8 +391,8 @@ end
                 #   \bar{rho*phi}^{min} <= \bar{rho*phi}^{Lim} <= \bar{rho*phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-                var_limited = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
-                error_pressure = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
+                var_limited = zero(eltype(mcl_bounds_delta_local))
+                error_pressure = zero(eltype(mcl_bounds_delta_local))
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
