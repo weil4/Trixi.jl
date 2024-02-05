@@ -262,8 +262,8 @@ end
                 #   \bar{phi}^{min} <= \bar{phi}^{Lim} / \bar{rho}^{Lim} <= \bar{phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-                var_limited = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
-                error_pressure = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
+                var_limited = zero(eltype(mcl_bounds_delta_global))
+                error_pressure = zero(eltype(mcl_bounds_delta_global))
                 # -x
                 rho_limited = bar_states1[1, i, j, element] -
                               antidiffusive_flux1_L[1, i, j, element] /
@@ -287,7 +287,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
                 # +x
                 rho_limited = bar_states1[1, i + 1, j, element] +
@@ -312,7 +312,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
                 # -y
                 rho_limited = bar_states2[1, i, j, element] -
@@ -337,7 +337,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
                 # +y
                 rho_limited = bar_states2[1, i, j + 1, element] +
@@ -362,7 +362,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
             end
         end
@@ -394,8 +394,8 @@ end
                 #   \bar{rho*phi}^{min} <= \bar{rho*phi}^{Lim} <= \bar{rho*phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
-                var_limited = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
-                error_pressure = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
+                var_limited = zero(eltype(mcl_bounds_delta_global))
+                error_pressure = zero(eltype(mcl_bounds_delta_global))
                 # -x
                 for v in 2:n_vars
                     var_limited = bar_states1[v, i, j, element] -
@@ -419,7 +419,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
                 # +x
                 for v in 2:n_vars
@@ -444,7 +444,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
                 # -y
                 for v in 2:n_vars
@@ -469,7 +469,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
                 # +y
                 for v in 2:n_vars
@@ -494,7 +494,7 @@ end
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
                                                                 error_pressure)
-                    error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
+                    error_pressure = zero(eltype(mcl_bounds_delta_global))
                 end
             end
         end
@@ -682,11 +682,11 @@ end
     for i in 1:Threads.nthreads()
         mcl_bounds_delta_local = mcl_bounds_delta_local_threaded[i]
         for v in eachvariable(equations)
-            mcl_bounds_delta_local[1, v] = zero(eltype(mcl_bounds_delta_local))
-            mcl_bounds_delta_local[2, v] = zero(eltype(mcl_bounds_delta_local))
+            mcl_bounds_delta_local[1, v] = zero(eltype(mcl_bounds_delta_global))
+            mcl_bounds_delta_local[2, v] = zero(eltype(mcl_bounds_delta_global))
         end
         if limiter.positivity_limiter_pressure
-            mcl_bounds_delta_local[1, n_vars + 1] = zero(eltype(mcl_bounds_delta_local))
+            mcl_bounds_delta_local[1, n_vars + 1] = zero(eltype(mcl_bounds_delta_global))
         end
     end
 
