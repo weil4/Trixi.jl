@@ -258,7 +258,7 @@ end
 
                 # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
                 # Checking the bounds for...
-                # - velocities and energy (phi):
+                # - velocities and total energy (phi):
                 #   \bar{phi}^{min} <= \bar{phi}^{Lim} / \bar{rho}^{Lim} <= \bar{phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
@@ -390,16 +390,13 @@ end
 
                 # Limited bar states \bar{u}^{Lim} = \bar{u} + Δf^{Lim} / λ
                 # Checking the bounds for...
-                # - conservative variables (phi):
+                # - conservative variables (noted as rho*phi):
                 #   \bar{rho*phi}^{min} <= \bar{rho*phi}^{Lim} <= \bar{rho*phi}^{max}
                 # - pressure (p):
                 #   \bar{rho}^{Lim} \bar{rho * E}^{Lim} >= |\bar{rho * v}^{Lim}|^2 / 2
                 var_limited = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
                 error_pressure = zero(eltype(mcl_bounds_delta_local_threaded[Threads.threadid()]))
                 # -x
-                rho_limited = bar_states1[1, i, j, element] -
-                              antidiffusive_flux1_L[1, i, j, element] /
-                              lambda1[i, j, element]
                 for v in 2:n_vars
                     var_limited = bar_states1[v, i, j, element] -
                                   antidiffusive_flux1_L[v, i, j, element] /
@@ -415,6 +412,9 @@ end
                     end
                 end
                 if limiter.positivity_limiter_pressure
+                    rho_limited = bar_states1[1, i, j, element] -
+                                  antidiffusive_flux1_L[1, i, j, element] /
+                                  lambda1[i, j, element]
                     error_pressure -= var_limited * rho_limited
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
@@ -422,9 +422,6 @@ end
                     error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
                 end
                 # +x
-                rho_limited = bar_states1[1, i + 1, j, element] +
-                              antidiffusive_flux1_L[1, i + 1, j, element] /
-                              lambda1[i + 1, j, element]
                 for v in 2:n_vars
                     var_limited = bar_states1[v, i + 1, j, element] +
                                   antidiffusive_flux1_L[v, i + 1, j, element] /
@@ -440,6 +437,9 @@ end
                     end
                 end
                 if limiter.positivity_limiter_pressure
+                    rho_limited = bar_states1[1, i + 1, j, element] +
+                                  antidiffusive_flux1_L[1, i + 1, j, element] /
+                                  lambda1[i + 1, j, element]
                     error_pressure -= var_limited * rho_limited
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
@@ -447,9 +447,6 @@ end
                     error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
                 end
                 # -y
-                rho_limited = bar_states2[1, i, j, element] -
-                              antidiffusive_flux2_L[1, i, j, element] /
-                              lambda2[i, j, element]
                 for v in 2:n_vars
                     var_limited = bar_states2[v, i, j, element] -
                                   antidiffusive_flux2_L[v, i, j, element] /
@@ -465,6 +462,9 @@ end
                     end
                 end
                 if limiter.positivity_limiter_pressure
+                    rho_limited = bar_states2[1, i, j, element] -
+                                  antidiffusive_flux2_L[1, i, j, element] /
+                                  lambda2[i, j, element]
                     error_pressure -= var_limited * rho_limited
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
@@ -472,9 +472,6 @@ end
                     error_pressure = zero(eltype(mcl_bounds_delta_local[Threads.threadid()]))
                 end
                 # +y
-                rho_limited = bar_states2[1, i, j + 1, element] +
-                              antidiffusive_flux2_L[1, i, j + 1, element] /
-                              lambda2[i, j + 1, element]
                 for v in 2:n_vars
                     var_limited = bar_states2[v, i, j + 1, element] +
                                   antidiffusive_flux2_L[v, i, j + 1, element] /
@@ -490,6 +487,9 @@ end
                     end
                 end
                 if limiter.positivity_limiter_pressure
+                    rho_limited = bar_states2[1, i, j + 1, element] +
+                                  antidiffusive_flux2_L[1, i, j + 1, element] /
+                                  lambda2[i, j + 1, element]
                     error_pressure -= var_limited * rho_limited
                     mcl_bounds_delta_local[1, n_vars + 1] = max(mcl_bounds_delta_local[1,
                                                                                        n_vars + 1],
