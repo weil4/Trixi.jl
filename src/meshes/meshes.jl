@@ -15,6 +15,7 @@ include("p4est_mesh.jl")
 include("t8code_mesh.jl")
 include("t8code_fv_mesh.jl")
 include("voronoi_mesh.jl")
+include("voronoi_mesh2.jl")
 include("mesh_io.jl")
 include("dgmulti_meshes.jl")
 end # @muladd

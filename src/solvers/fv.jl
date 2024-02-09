@@ -136,4 +136,5 @@ end
 
 include("fv_t8code/fv_2d.jl")
 include("fv_voronoi_old/fv_2d.jl")
+include("fv_voronoi/fv_2d.jl")
 end # @muladd

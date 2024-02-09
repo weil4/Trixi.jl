@@ -239,6 +239,96 @@ function calc_error_norms(func, u, t, analyzer,
     return l2_error, linf_error
 end
 
+function calc_error_norms(func, u, t, analyzer,
+                          mesh::TriangularMesh, equations,
+                          initial_condition, solver::FV, cache, cache_analysis)
+    (; volume, midpoints) = cache
+    # Set up data structures
+    l2_error = zero(func(get_node_vars(u, equations, solver, 1), equations))
+    linf_error = copy(l2_error)
+    total_volume = zero(real(mesh))
+
+    # Iterate over all elements for error calculations
+    for element in eachelement(mesh, solver, cache)
+        midpoint = get_node_coords(midpoints, equations, solver, element)
+
+        u_exact = initial_condition(midpoint, t, equations)
+        diff = func(u_exact, equations) -
+               func(get_node_vars(u, equations, solver, element), equations)
+        l2_error += diff .^ 2 * volume[element]
+        linf_error = @. max(linf_error, abs(diff))
+        total_volume += volume[element]
+    end
+
+    # Accumulate local results on root process
+    if mpi_isparallel()
+        global_l2_error = Vector(l2_error)
+        global_linf_error = Vector(linf_error)
+        MPI.Reduce!(global_l2_error, +, mpi_root(), mpi_comm())
+        MPI.Reduce!(global_linf_error, max, mpi_root(), mpi_comm())
+        total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
+        if mpi_isroot()
+            l2_error = convert(typeof(l2_error), global_l2_error)
+            linf_error = convert(typeof(linf_error), global_linf_error)
+            # For L2 error, divide by total volume
+            l2_error = @. sqrt(l2_error / total_volume_)
+        else
+            l2_error = convert(typeof(l2_error), NaN * global_l2_error)
+            linf_error = convert(typeof(linf_error), NaN * global_linf_error)
+        end
+    else
+        # For L2 error, divide by total volume
+        l2_error = @. sqrt(l2_error / total_volume)
+    end
+
+    return l2_error, linf_error
+end
+
+function calc_error_norms(func, u, t, analyzer,
+                          mesh::VoronoiMesh2, equations,
+                          initial_condition, solver::FV, cache, cache_analysis)
+    (; data_points, volume) = cache
+    # Set up data structures
+    l2_error = zero(func(get_node_vars(u, equations, solver, 1), equations))
+    linf_error = copy(l2_error)
+    total_volume = zero(real(mesh))
+
+    # Iterate over all elements for error calculations
+    for element in eachelement(mesh, solver, cache)
+        midpoint = get_node_coords(data_points, equations, solver, element)
+
+        u_exact = initial_condition(SVector(midpoint), t, equations)
+        diff = func(u_exact, equations) -
+               func(get_node_vars(u, equations, solver, element), equations)
+        l2_error += diff .^ 2 * volume[element]
+        linf_error = @. max(linf_error, abs(diff))
+        total_volume += volume[element]
+    end
+
+    # Accumulate local results on root process
+    if mpi_isparallel()
+        global_l2_error = Vector(l2_error)
+        global_linf_error = Vector(linf_error)
+        MPI.Reduce!(global_l2_error, +, mpi_root(), mpi_comm())
+        MPI.Reduce!(global_linf_error, max, mpi_root(), mpi_comm())
+        total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
+        if mpi_isroot()
+            l2_error = convert(typeof(l2_error), global_l2_error)
+            linf_error = convert(typeof(linf_error), global_linf_error)
+            # For L2 error, divide by total volume
+            l2_error = @. sqrt(l2_error / total_volume_)
+        else
+            l2_error = convert(typeof(l2_error), NaN * global_l2_error)
+            linf_error = convert(typeof(linf_error), NaN * global_linf_error)
+        end
+    else
+        # For L2 error, divide by total volume
+        l2_error = @. sqrt(l2_error / total_volume)
+    end
+
+    return l2_error, linf_error
+end
+
 function integrate_via_indices(func::Func, u,
                                mesh::TreeMesh{2}, equations, dg::DGSEM, cache,
                                args...; normalize = true) where {Func}
@@ -379,6 +469,45 @@ function integrate_via_indices(func::Func, u,
 
     if mpi_isparallel()
         error("TODO")
+        global_integral = MPI.Reduce!(Ref(integral), +, mpi_root(), mpi_comm())
+        total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
+        if mpi_isroot()
+            integral = convert(typeof(integral), global_integral[])
+            # Normalize with total volume
+            if normalize
+                integral = integral / total_volume_
+            end
+        else
+            integral = convert(typeof(integral), NaN * integral)
+            total_volume_ = total_volume # non-root processes receive nothing from reduce -> overwrite
+        end
+    else
+        # Normalize with total volume
+        if normalize
+            integral = integral / total_volume
+        end
+    end
+
+    return integral
+end
+
+function integrate_via_indices(func::Func, u,
+                               mesh::Union{VoronoiMesh2, TriangularMesh}, equations,
+                               solver::FV, cache, args...;
+                               normalize = true) where {Func}
+    (; volume) = cache
+
+    # Initialize integral with zeros of the right shape
+    integral = zero(func(u, 1, equations, solver, args...))
+    total_volume = zero(real(mesh))
+
+    # Use quadrature to numerically integrate over entire domain
+    for element in eachelement(mesh, solver, cache)
+        integral += volume[element] * func(u, element, equations, solver, args...)
+        total_volume += volume[element]
+    end
+
+    if mpi_isparallel()
         global_integral = MPI.Reduce!(Ref(integral), +, mpi_root(), mpi_comm())
         total_volume_ = MPI.Reduce(total_volume, +, mpi_root(), mpi_comm())
         if mpi_isroot()

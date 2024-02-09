@@ -56,6 +56,7 @@ using Polyester: Polyester, @batch # You know, the cheapest threads you can find
 using OffsetArrays: OffsetArray, OffsetVector
 using P4est
 using T8code
+using Smesh
 using Setfield: @set
 using RecipesBase: RecipesBase
 using Requires: @require
@@ -221,7 +222,7 @@ export lake_at_rest_error
 export ncomponents, eachcomponent
 
 export TreeMesh, StructuredMesh, UnstructuredMesh2D, P4estMesh, T8codeMesh, T8codeFVMesh,
-       VoronoiMesh
+       VoronoiMesh, VoronoiMesh2, TriangularMesh
 
 export DG,
        DGSEM, LobattoLegendreBasis,

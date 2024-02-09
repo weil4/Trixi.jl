@@ -1,0 +1,122 @@
+# By default, Julia/LLVM does not use fused multiply-add operations (FMAs).
+# Since these FMAs can increase the performance of many numerical algorithms,
+# we need to opt-in explicitly.
+# See https://ranocha.de/blog/Optimizing_EC_Trixi for further details.
+@muladd begin
+#! format: noindent
+
+mutable struct TriangularMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
+    data_points::Array{RealT, 2}
+    n_elements::Int
+    # n_nodes::Int
+    # n_max_faces::Int
+    # is_parallel::IsParallel
+    current_filename::String
+    unsaved_changes::Bool
+
+    function TriangularMesh(data_points; current_filename = "", unsaved_changes = true)
+        NDIMS = size(data_points, 1)
+        @assert NDIMS == 2
+
+        n_elements = 0 # Changed later
+
+        # is_parallel = False()
+
+        mesh = new{NDIMS, Cdouble}(data_points, n_elements, current_filename, unsaved_changes)
+
+        return mesh
+    end
+end
+
+@inline Base.ndims(::TriangularMesh{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.real(::TriangularMesh{NDIMS, RealT}) where {NDIMS, RealT} = RealT
+
+@inline nelementsglobal(mesh::TriangularMesh, solver, cache) = nelements(mesh, solver, cache)
+@inline nelements(mesh::TriangularMesh, solver, cache) = mesh.n_elements
+
+@inline function eachelement(mesh::TriangularMesh, solver, cache)
+    Base.OneTo(nelements(mesh, solver, cache))
+end
+
+function Base.show(io::IO, mesh::TriangularMesh)
+    print(io, "TriangularMesh{", ndims(mesh), ", ", real(mesh), "}(")
+    print(io, "# elements: ", mesh.n_elements)
+    print(io, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", mesh::TriangularMesh)
+    if get(io, :compact, false)
+        show(io, mesh)
+    else
+        summary_header(io,
+                       "TriangularMesh{" * string(ndims(mesh)) * ", " * string(real(mesh)) *
+                       "}")
+        summary_line(io, "# elements", mesh.n_elements)
+        summary_footer(io)
+    end
+end
+
+mutable struct VoronoiMesh2{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
+    mesh_type::Symbol
+    orthogonal_boundary_edges::Bool
+    data_points::Array{RealT, 2}
+    n_voronoi_elements::Int
+    # n_nodes::Int
+    # n_max_faces::Int
+    # is_parallel::IsParallel
+    current_filename::String
+    unsaved_changes::Bool
+
+    function VoronoiMesh2(data_points; mesh_type = :standard_voronoi, orthogonal_boundary_edges=true,
+                          current_filename = "", unsaved_changes = true)
+        NDIMS, n_voronoi_elements = size(data_points)
+        @assert NDIMS == 2
+
+        # is_parallel = False()
+
+        mesh = new{NDIMS, Cdouble}(mesh_type, orthogonal_boundary_edges, data_points, n_voronoi_elements, current_filename, unsaved_changes)
+
+        return mesh
+    end
+end
+
+@inline Base.ndims(::VoronoiMesh2{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.real(::VoronoiMesh2{NDIMS, RealT}) where {NDIMS, RealT} = RealT
+
+@inline nelementsglobal(mesh::VoronoiMesh2, solver, cache) = nelements(mesh, solver, cache)
+@inline nelements(mesh::VoronoiMesh2, solver, cache) = mesh.n_voronoi_elements
+
+@inline function eachelement(mesh::VoronoiMesh2, solver, cache)
+    Base.OneTo(nelements(mesh, solver, cache))
+end
+
+# @inline function nelementsglobal(mesh::VoronoiMesh2, solver, cache)
+#     nelements(mesh, solver, cache)
+# end
+
+# @inline function nnodes(mesh::VoronoiMesh2, cache)
+#     mesh.n_nodes
+# end
+
+@inline function eachnode(mesh::VoronoiMesh2, cache)
+    Base.OneTo(nnodes(mesh, cache))
+end
+
+function Base.show(io::IO, mesh::VoronoiMesh2)
+    print(io, "VoronoiMesh2{", ndims(mesh), ", ", real(mesh), "}(")
+    print(io, "# voronoi elements: ", mesh.n_voronoi_elements)
+    print(io, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", mesh::VoronoiMesh2)
+    if get(io, :compact, false)
+        show(io, mesh)
+    else
+        summary_header(io,
+                       "VoronoiMesh2{" * string(ndims(mesh)) * ", " * string(real(mesh)) *
+                       "}")
+        summary_line(io, "# voronoi elements", mesh.n_voronoi_elements)
+        summary_footer(io)
+    end
+end
+end # muladd
