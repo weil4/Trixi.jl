@@ -206,4 +206,44 @@ function max_dt(u, t, mesh::ParallelT8codeMesh{2},
 
     return dt
 end
+
+function max_dt(u, t, mesh::Union{TriangularMesh, PolygonMesh},
+                constant_speed::True, equations, solver::FV, cache)
+    (; dx) = cache
+    dt = typemax(eltype(u))
+
+    max_lambda1, max_lambda2 = max_abs_speeds(equations)
+
+    for element in eachelement(mesh, solver, cache)
+        dt = min(dt, dx[element] / (max_lambda1 + max_lambda2))
+    end
+    # Since the speed is constant, we can do the division after the `for` loop, right?
+    # For TreeMesh with constant speed it is done the like here. Why?
+
+    if mpi_isparallel()
+        error("TODO")
+        dt = MPI.Allreduce!(Ref(dt), min, mpi_comm())[]
+    end
+
+    return dt
+end
+
+function max_dt(u, t, mesh::Union{TriangularMesh, PolygonMesh},
+                constant_speed::False, equations, solver::FV, cache)
+    (; dx) = cache
+    dt = typemax(eltype(u))
+
+    for element in eachelement(mesh, solver, cache)
+        u_local = get_node_vars(u, equations, solver, element)
+        lambda1, lambda2 = max_abs_speeds(u_local, equations)
+        dt = min(dt, dx[element] / (lambda1 + lambda2))
+    end
+
+    if mpi_isparallel()
+        error("TODO")
+        dt = MPI.Allreduce!(Ref(dt), min, mpi_comm())[]
+    end
+
+    return dt
+end
 end # @muladd
