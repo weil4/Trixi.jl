@@ -25,7 +25,7 @@ solver = FV(order = 1,
 coordinates_min = [-1.0, -1.0]
 coordinates_max = [1.0, 1.0]
 
-initial_refinement_level = 5
+initial_refinement_level = 3
 n_points_x = 2^initial_refinement_level
 n_points_y = 2^initial_refinement_level
 data_points = mesh_basic(coordinates_min, coordinates_max, n_points_x, n_points_y)
@@ -46,7 +46,7 @@ alive_callback = AliveCallback(analysis_interval=analysis_interval)
 save_solution = SaveSolutionCallback(interval = 100,
                                      solution_variables = cons2prim)
 
-stepsize_callback = StepsizeCallback(cfl=0.005) # TODO calculation of dx
+stepsize_callback = StepsizeCallback(cfl=0.001) # TODO calculation of dx
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback, stepsize_callback)#, save_solution)
 
