@@ -212,7 +212,7 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
                      solver::FV)
     n_elements = nelements(mesh, equations, solver)
     volume = zeros(eltype(voronoi_vertices_coordinates), n_elements)
-    dx = similar(volume)
+    dx = zeros(eltype(voronoi_vertices_coordinates), n_elements)
 
     for element in eachindex(volume)
         node_index_start = voronoi_vertices_interval[1, element]
@@ -222,20 +222,23 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
         for i in node_index_start:(node_index_end - 1)
             node1 = voronoi_vertices[i]
             node2 = voronoi_vertices[i + 1]
-            volume[element] += voronoi_vertices_coordinates[1, node1] *
-                               voronoi_vertices_coordinates[2, node2] -
-                               voronoi_vertices_coordinates[2, node1] *
-                               voronoi_vertices_coordinates[1, node2]
+            x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node1)
+            x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node2)
+
+            volume[element] += x_node1[1] * x_node2[2] -
+                               x_node1[2] * x_node2[1]
+
+            dx[element] = max(dx[element], norm(x_node1 - x_node2))
         end
         node_last = voronoi_vertices[node_index_end]
         node_first = voronoi_vertices[node_index_start]
-        volume[element] += voronoi_vertices_coordinates[1, node_last] *
-                           voronoi_vertices_coordinates[2, node_first] -
-                           voronoi_vertices_coordinates[2, node_last] *
-                           voronoi_vertices_coordinates[1, node_first]
+        x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node_last)
+        x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node_first)
+        volume[element] += x_node1[1] * x_node2[2] -
+                           x_node1[2] * x_node2[1]
         volume[element] *= 0.5
 
-        dx[element] = 1 # TODO
+        dx[element] = max(dx[element], norm(x_node1 - x_node2))
     end
 
     return volume, dx
