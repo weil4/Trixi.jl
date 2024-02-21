@@ -154,7 +154,7 @@ function AnalysisCallback(mesh::Union{TriangularMesh, PolygonMesh},
                           analysis_integrals = union(default_analysis_integrals(equations),
                                                      extra_analysis_integrals),
                           RealT = real(solver),
-                          uEltype = eltype(cache.data_points),
+                          uEltype = eltype(mesh.data_points),
                           kwargs...)
     # Decide when the callback is activated.
     # With error-based step size control, some steps can be rejected. Thus,

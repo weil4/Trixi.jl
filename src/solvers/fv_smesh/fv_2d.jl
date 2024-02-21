@@ -11,11 +11,9 @@
 function create_cache(mesh::TriangularMesh, equations,
                       solver::FV, RealT, uEltype)
     (; data_points) = mesh
-    # n_dims = ndims(mesh)
 
-    # Build triangulation
-    triangulation_vertices = build_delaunay_triangulation(data_points)
-    mesh.n_elements = size(triangulation_vertices, 2)
+    # Triangulation
+    (; triangulation_vertices) = mesh
 
     # Calculate neighbors in triangulation
     triangulation_neighbors = delaunay_compute_neighbors(data_points,
@@ -27,8 +25,7 @@ function create_cache(mesh::TriangularMesh, equations,
     midpoints = calc_midpoints(data_points, triangulation_vertices, mesh, equations,
                                solver)
 
-    cache = (; data_points, triangulation_vertices, triangulation_neighbors, volume, dx,
-             midpoints)
+    cache = (; triangulation_vertices, triangulation_neighbors, volume, dx, midpoints)
 
     return cache
 end
@@ -86,7 +83,7 @@ end
 function allocate_coefficients(mesh::TriangularMesh, equations, solver::FV, cache)
     # We must allocate a `Vector` in order to be able to `resize!` it (AMR).
     # cf. wrap_array
-    zeros(eltype(cache.data_points),
+    zeros(eltype(mesh.data_points),
           nvariables(equations) * nelements(mesh, solver, cache))
 end
 
@@ -103,7 +100,8 @@ end
 function rhs!(du, u, t, mesh::TriangularMesh, equations, initial_condition,
               boundary_conditions, source_terms::Source, solver::FV,
               cache) where {Source}
-    (; data_points, triangulation_vertices, triangulation_neighbors, volume) = cache
+    (; data_points) = mesh
+    (; triangulation_vertices, triangulation_neighbors, volume) = cache
     (; surface_flux) = solver
 
     du .= zero(eltype(du))
@@ -188,17 +186,12 @@ function create_cache(mesh::PolygonMesh, equations,
                       solver::FV, RealT, uEltype)
     (; data_points) = mesh
 
-    # Build triangulation
-    triangulation_vertices = build_delaunay_triangulation(data_points)
+    # Triangulation and Polygon mesh
+    (; triangulation_vertices, voronoi_vertices_coordinates, voronoi_vertices, voronoi_vertices_interval) = mesh
 
+    # Neighbors
     triangulation_neighbors = delaunay_compute_neighbors(data_points,
                                                          triangulation_vertices)
-
-    voronoi_vertices_coordinates, voronoi_vertices, voronoi_vertices_interval = build_polygon_mesh(data_points,
-                                                                                                   triangulation_vertices,
-                                                                                                   mesh_type = mesh.mesh_type,
-                                                                                                   orthogonal_boundary_edges = mesh.orthogonal_boundary_edges)
-    mesh.n_elements = size(voronoi_vertices_interval, 2)
 
     voronoi_neighbors = voronoi_compute_neighbors(triangulation_vertices,
                                                   voronoi_vertices,
@@ -208,7 +201,7 @@ function create_cache(mesh::PolygonMesh, equations,
     volume, dx = calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
                              voronoi_vertices_interval, mesh, equations, solver)
 
-    cache = (; data_points, voronoi_vertices_coordinates, voronoi_vertices,
+    cache = (; voronoi_vertices_coordinates, voronoi_vertices,
              voronoi_vertices_interval, voronoi_neighbors, volume, dx)
 
     return cache
@@ -251,13 +244,13 @@ end
 function allocate_coefficients(mesh::PolygonMesh, equations, solver::FV, cache)
     # We must allocate a `Vector` in order to be able to `resize!` it (AMR).
     # cf. wrap_array
-    zeros(eltype(cache.data_points),
+    zeros(eltype(mesh.data_points),
           nvariables(equations) * nelements(mesh, solver, cache))
 end
 
 function compute_coefficients!(u, func, t, mesh::PolygonMesh, equations,
                                solver::FV, cache)
-    (; data_points) = cache
+    (; data_points) = mesh
     for element in eachelement(mesh, solver, cache)
         x_node = get_node_coords(data_points, equations, solver, element)
         u_node = func(x_node, t, equations)

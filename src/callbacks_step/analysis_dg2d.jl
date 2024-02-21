@@ -197,7 +197,8 @@ end
 function calc_error_norms(func, u, t, analyzer,
                           mesh::PolygonMesh, equations,
                           initial_condition, solver::FV, cache, cache_analysis)
-    (; data_points, volume) = cache
+    (; data_points) = mesh
+    (; volume) = cache
     # Set up data structures
     l2_error = zero(func(get_node_vars(u, equations, solver, 1), equations))
     linf_error = copy(l2_error)

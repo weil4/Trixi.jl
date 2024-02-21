@@ -8,7 +8,7 @@
 mutable struct TriangularMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
     data_points::Array{RealT, 2}
     n_elements::Int
-    # n_max_faces::Int
+    triangulation_vertices::Array{Cint, 2}
     # is_parallel::IsParallel
     current_filename::String
     unsaved_changes::Bool
@@ -17,12 +17,13 @@ mutable struct TriangularMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
         NDIMS = size(data_points, 1)
         @assert NDIMS == 2
 
-        n_elements = 0 # Changed later
+        triangulation_vertices = build_delaunay_triangulation(data_points)
+        n_elements = size(triangulation_vertices, 2)
 
         # is_parallel = False()
 
-        mesh = new{NDIMS, Cdouble}(data_points, n_elements, current_filename,
-                                   unsaved_changes)
+        mesh = new{NDIMS, Cdouble}(data_points, n_elements, triangulation_vertices,
+                                   current_filename, unsaved_changes)
 
         return mesh
     end
@@ -61,7 +62,11 @@ mutable struct PolygonMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
     mesh_type::Symbol
     orthogonal_boundary_edges::Bool
     data_points::Array{RealT, 2}
+    triangulation_vertices::Array{Cint, 2}
     n_elements::Int
+    voronoi_vertices_coordinates::Array{RealT, 2}
+    voronoi_vertices::Array{Cint}
+    voronoi_vertices_interval::Array{Cint, 2}
     # n_max_faces::Int
     # is_parallel::IsParallel
     current_filename::String
@@ -73,12 +78,20 @@ mutable struct PolygonMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
         NDIMS = size(data_points, 1)
         @assert NDIMS == 2
 
-        n_elements = 0 # Changed later
+        triangulation_vertices = build_delaunay_triangulation(data_points)
+
+        voronoi_vertices_coordinates, voronoi_vertices, voronoi_vertices_interval = build_polygon_mesh(data_points,
+                                                                                                       triangulation_vertices,
+                                                                                                       mesh_type = mesh_type,
+                                                                                                       orthogonal_boundary_edges = orthogonal_boundary_edges)
+        n_elements = size(voronoi_vertices_interval, 2)
 
         # is_parallel = False()
 
         mesh = new{NDIMS, Cdouble}(mesh_type, orthogonal_boundary_edges, data_points,
-                                   n_elements,
+                                   triangulation_vertices, n_elements,
+                                   voronoi_vertices_coordinates, voronoi_vertices,
+                                   voronoi_vertices_interval,
                                    current_filename, unsaved_changes)
 
         return mesh
@@ -95,14 +108,6 @@ end
 @inline function eachelement(mesh::PolygonMesh, solver, cache)
     Base.OneTo(nelements(mesh, solver, cache))
 end
-
-# @inline function nelementsglobal(mesh::PolygonMesh, solver, cache)
-#     nelements(mesh, solver, cache)
-# end
-
-# @inline function nnodes(mesh::PolygonMesh, cache)
-#     mesh.n_nodes
-# end
 
 function Base.show(io::IO, mesh::PolygonMesh)
     print(io, "PolygonMesh{", ndims(mesh), ", ", real(mesh), "}(")
