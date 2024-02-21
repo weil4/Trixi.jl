@@ -26,6 +26,10 @@ function initial_condition_blast_wave(x, t, equations::CompressibleEulerEquation
 end
 initial_condition = initial_condition_blast_wave
 
+# Note: Only supported to use one boundary condition for all boundaries.
+# To fix this: How do I distinguish which boundary I am at? TODO
+boundary_condition = BoundaryConditionDirichlet(initial_condition)
+
 solver = FV(surface_flux = flux_lax_friedrichs)
 
 coordinates_min = [-1.0, -1.0]
@@ -37,9 +41,8 @@ n_points_y = 2^initial_refinement_level
 data_points = mesh_basic(coordinates_min, coordinates_max, n_points_x, n_points_y)
 mesh = TriangularMesh(data_points)
 
-# Right now, I'm using Dirichlet boundary condition everywhere. Does my result makes sence because of that?
-# Seems to be right.
-semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
+semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
+                                    boundary_conditions = boundary_condition)
 
 ode = semidiscretize(semi, (0.0, 2.0));
 

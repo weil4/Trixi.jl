@@ -104,6 +104,7 @@ function rhs!(du, u, t, mesh::TriangularMesh, equations, initial_condition,
               boundary_conditions, source_terms::Source, solver::FV,
               cache) where {Source}
     (; data_points, triangulation_vertices, triangulation_neighbors, volume) = cache
+    (; surface_flux) = solver
 
     du .= zero(eltype(du))
 
@@ -127,15 +128,20 @@ function rhs!(du, u, t, mesh::TriangularMesh, equations, initial_condition,
             neighbor = triangulation_neighbors[(node_index + 1) % 3 + 1, element]
             if neighbor != 0
                 u_neighbor = get_node_vars(u, equations, solver, neighbor)
+                @trixi_timeit timer() "surface flux" flux=surface_flux(u_node,
+                                                                       u_neighbor,
+                                                                       normal,
+                                                                       equations)
             else # neighbor == 0
                 x_midpoint_face = 0.5 * (x_node1 + x_node2)
-                u_neighbor = initial_condition(x_midpoint_face, t, equations)
+                @trixi_timeit timer() "boundary flux" flux=boundary_conditions(u_node,
+                                                                               normal,
+                                                                               x_midpoint_face,
+                                                                               t,
+                                                                               surface_flux,
+                                                                               equations)
             end
 
-            @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
-                                                                          u_neighbor,
-                                                                          normal,
-                                                                          equations)
             for v in eachvariable(equations)
                 du[v, element] -= (1 / volume[element]) * face_size * flux[v]
             end
@@ -158,15 +164,17 @@ function rhs!(du, u, t, mesh::TriangularMesh, equations, initial_condition,
         neighbor = triangulation_neighbors[2, element]
         if neighbor != 0
             u_neighbor = get_node_vars(u, equations, solver, neighbor)
+            @trixi_timeit timer() "surface flux" flux=surface_flux(u_node, u_neighbor,
+                                                                   normal, equations)
         else # neighbor == 0
             x_midpoint_face = (x_node1 .+ x_node2) ./ 2.0
-            u_neighbor = initial_condition(x_midpoint_face, t, equations)
+            @trixi_timeit timer() "boundary flux" flux=boundary_conditions(u_node,
+                                                                           normal,
+                                                                           x_midpoint_face,
+                                                                           t,
+                                                                           surface_flux,
+                                                                           equations)
         end
-
-        @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
-                                                                      u_neighbor,
-                                                                      normal,
-                                                                      equations)
 
         for v in eachvariable(equations)
             du[v, element] -= (1 / volume[element]) * face_size * flux[v]
@@ -179,7 +187,6 @@ end
 function create_cache(mesh::PolygonMesh, equations,
                       solver::FV, RealT, uEltype)
     (; data_points) = mesh
-    # n_dims = ndims(mesh)
 
     # Build triangulation
     triangulation_vertices = build_delaunay_triangulation(data_points)
@@ -191,7 +198,7 @@ function create_cache(mesh::PolygonMesh, equations,
                                                                                                    triangulation_vertices,
                                                                                                    mesh_type = mesh.mesh_type,
                                                                                                    orthogonal_boundary_edges = mesh.orthogonal_boundary_edges)
-    mesh.n_voronoi_elements = size(voronoi_vertices_interval, 2)
+    mesh.n_elements = size(voronoi_vertices_interval, 2)
 
     voronoi_neighbors = voronoi_compute_neighbors(triangulation_vertices,
                                                   voronoi_vertices,
@@ -210,8 +217,8 @@ end
 function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
                      voronoi_vertices_interval, mesh::PolygonMesh, equations,
                      solver::FV)
-    n_voronoi_elements = nelements(mesh, equations, solver)
-    volume = zeros(eltype(voronoi_vertices_coordinates), n_voronoi_elements)
+    n_elements = nelements(mesh, equations, solver)
+    volume = zeros(eltype(voronoi_vertices_coordinates), n_elements)
     dx = similar(volume)
 
     for element in eachindex(volume)
@@ -262,6 +269,7 @@ function rhs!(du, u, t, mesh::PolygonMesh, equations, initial_condition,
               boundary_conditions, source_terms::Source, solver::FV,
               cache) where {Source}
     (; voronoi_vertices_coordinates, voronoi_vertices, voronoi_vertices_interval, voronoi_neighbors, volume) = cache
+    (; surface_flux) = solver
 
     du .= zero(eltype(du))
 
@@ -290,15 +298,20 @@ function rhs!(du, u, t, mesh::PolygonMesh, equations, initial_condition,
             neighbor = voronoi_neighbors[node_index]
             if neighbor != 0
                 u_neighbor = get_node_vars(u, equations, solver, neighbor)
+                @trixi_timeit timer() "surface flux" flux=surface_flux(u_node,
+                                                                       u_neighbor,
+                                                                       normal,
+                                                                       equations)
             else # neighbor == 0
                 x_midpoint_face = 0.5 * (x_node1 + x_node2)
-                u_neighbor = initial_condition(x_midpoint_face, t, equations)
+                @trixi_timeit timer() "boundary flux" flux=boundary_conditions(u_node,
+                                                                               normal,
+                                                                               x_midpoint_face,
+                                                                               t,
+                                                                               surface_flux,
+                                                                               equations)
             end
 
-            @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
-                                                                          u_neighbor,
-                                                                          normal,
-                                                                          equations)
             for v in eachvariable(equations)
                 du[v, element] -= (1 / volume[element]) * face_size * flux[v]
             end
@@ -323,15 +336,18 @@ function rhs!(du, u, t, mesh::PolygonMesh, equations, initial_condition,
         neighbor = voronoi_neighbors[nodes_end]
         if neighbor != 0
             u_neighbor = get_node_vars(u, equations, solver, neighbor)
+            @trixi_timeit timer() "surface flux" flux=surface_flux(u_node, u_neighbor,
+                                                                   normal, equations)
         else # neighbor == 0
             x_midpoint_face = 0.5 * (x_node1 + x_node2)
-            u_neighbor = initial_condition(x_midpoint_face, t, equations)
+            @trixi_timeit timer() "boundary flux" flux=boundary_conditions(u_node,
+                                                                           normal,
+                                                                           x_midpoint_face,
+                                                                           t,
+                                                                           surface_flux,
+                                                                           equations)
         end
 
-        @trixi_timeit timer() "surface flux" flux=solver.surface_flux(u_node,
-                                                                      u_neighbor,
-                                                                      normal,
-                                                                      equations)
         for v in eachvariable(equations)
             du[v, element] -= (1 / volume[element]) * face_size * flux[v]
         end

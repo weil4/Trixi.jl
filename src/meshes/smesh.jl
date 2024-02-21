@@ -8,7 +8,6 @@
 mutable struct TriangularMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
     data_points::Array{RealT, 2}
     n_elements::Int
-    # n_nodes::Int
     # n_max_faces::Int
     # is_parallel::IsParallel
     current_filename::String
@@ -62,8 +61,7 @@ mutable struct PolygonMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
     mesh_type::Symbol
     orthogonal_boundary_edges::Bool
     data_points::Array{RealT, 2}
-    n_voronoi_elements::Int
-    # n_nodes::Int
+    n_elements::Int
     # n_max_faces::Int
     # is_parallel::IsParallel
     current_filename::String
@@ -72,14 +70,16 @@ mutable struct PolygonMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
     function PolygonMesh(data_points; mesh_type = :standard_voronoi,
                          orthogonal_boundary_edges = true,
                          current_filename = "", unsaved_changes = true)
-        NDIMS, n_voronoi_elements = size(data_points)
+        NDIMS = size(data_points, 1)
         @assert NDIMS == 2
+
+        n_elements = 0 # Changed later
 
         # is_parallel = False()
 
         mesh = new{NDIMS, Cdouble}(mesh_type, orthogonal_boundary_edges, data_points,
-                                   n_voronoi_elements, current_filename,
-                                   unsaved_changes)
+                                   n_elements,
+                                   current_filename, unsaved_changes)
 
         return mesh
     end
@@ -90,7 +90,7 @@ end
 
 @inline nelementsglobal(mesh::PolygonMesh, solver, cache) = nelements(mesh, solver,
                                                                       cache)
-@inline nelements(mesh::PolygonMesh, solver, cache) = mesh.n_voronoi_elements
+@inline nelements(mesh::PolygonMesh, solver, cache) = mesh.n_elements
 
 @inline function eachelement(mesh::PolygonMesh, solver, cache)
     Base.OneTo(nelements(mesh, solver, cache))
@@ -104,13 +104,9 @@ end
 #     mesh.n_nodes
 # end
 
-@inline function eachnode(mesh::PolygonMesh, cache)
-    Base.OneTo(nnodes(mesh, cache))
-end
-
 function Base.show(io::IO, mesh::PolygonMesh)
     print(io, "PolygonMesh{", ndims(mesh), ", ", real(mesh), "}(")
-    print(io, "# voronoi elements: ", mesh.n_voronoi_elements)
+    print(io, "# elements: ", mesh.n_elements)
     print(io, ")")
 end
 
@@ -121,7 +117,7 @@ function Base.show(io::IO, ::MIME"text/plain", mesh::PolygonMesh)
         summary_header(io,
                        "PolygonMesh{" * string(ndims(mesh)) * ", " *
                        string(real(mesh)) * "}")
-        summary_line(io, "# voronoi elements", mesh.n_voronoi_elements)
+        summary_line(io, "# elements", mesh.n_elements)
         summary_footer(io)
     end
 end

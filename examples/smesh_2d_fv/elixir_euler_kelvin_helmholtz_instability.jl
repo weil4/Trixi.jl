@@ -32,6 +32,10 @@ function initial_condition_kelvin_helmholtz_instability(x, t,
 end
 initial_condition = initial_condition_kelvin_helmholtz_instability
 
+# Note: Only supported to use one boundary condition for all boundaries.
+# To fix this: How do I distinguish which boundary I am at? TODO
+boundary_condition = BoundaryConditionDirichlet(initial_condition)
+
 solver = FV(surface_flux = flux_lax_friedrichs)
 
 coordinates_min = [-1.0, -1.0]
@@ -43,7 +47,8 @@ n_points_y = 2^initial_refinement_level
 data_points = mesh_basic(coordinates_min, coordinates_max, n_points_x, n_points_y)
 mesh = TriangularMesh(data_points)
 
-semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
+semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
+                                    boundary_conditions = boundary_condition)
 
 tspan = (0.0, 3.7)
 ode = semidiscretize(semi, tspan)

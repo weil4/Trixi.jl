@@ -11,6 +11,10 @@ equations = LinearScalarAdvectionEquation2D(advection_velocity)
 initial_condition = initial_condition_convergence_test
 # initial_condition = initial_condition_constant
 
+# Note: Only supported to use one boundary condition for all boundaries.
+# To fix this: How do I distinguish which boundary I am at? TODO
+boundary_condition = BoundaryConditionDirichlet(initial_condition)
+
 # boundary_condition = BoundaryConditionDirichlet(initial_condition)
 # boundary_conditions = Dict(:x_neg => boundary_condition,
 #                            :x_pos => boundary_condition,
@@ -30,8 +34,8 @@ n_points_y = 2^initial_refinement_level
 data_points = mesh_basic(coordinates_min, coordinates_max, n_points_x, n_points_y)
 mesh = TriangularMesh(data_points)
 
-semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
-# boundary_conditions = boundary_conditions)
+semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
+                                    boundary_conditions = boundary_condition)
 
 ode = semidiscretize(semi, (0.0, 1.0));
 
