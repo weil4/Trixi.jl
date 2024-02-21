@@ -47,12 +47,14 @@ analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
 save_solution = SaveSolutionCallback(interval = 100,
+                                     save_initial_solution = true,
+                                     save_final_solution = true,
                                      solution_variables = cons2prim)
 
-stepsize_callback = StepsizeCallback(cfl = 0.001) # TODO calculation of dx
+stepsize_callback = StepsizeCallback(cfl = 0.5)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        stepsize_callback)#, save_solution)
+                        save_solution, stepsize_callback)
 
 ###############################################################################
 # run the simulation
@@ -61,12 +63,3 @@ sol = solve(ode, Euler(),# CarpenterKennedy2N54(williamson_condition=false),
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
             save_everystep = false, saveat = 0.1, callback = callbacks)
 summary_callback()
-
-# using Plots; pyplot()
-# @gif for i in eachindex(sol.u)
-#     surface(semi.cache.data_points[1, :], semi.cache.data_points[2, :], sol.u[i],
-#                     #=zaxis=[1.8, 2.2],=# xlabel="x", ylabel="y")
-# end
-# plt = display(surface(semi.cache.data_points[1, :], semi.cache.data_points[2, :], sol.u[1]))
-# plt = display(surface(semi.cache.data_points[1, :], semi.cache.data_points[2, :], sol.u[end]))
-# scatter(semi.cache.data_points[1, :], semi.cache.data_points[2, :])

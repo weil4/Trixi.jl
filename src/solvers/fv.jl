@@ -88,5 +88,14 @@ function create_cache_analysis(analyzer, mesh,
                                RealT, uEltype)
 end
 
+function get_element_variables!(element_variables, u, mesh, equations, solver::FV,
+                                cache)
+    return nothing
+end
+
+function get_node_variables!(node_variables, mesh, equations, solver::FV, cache)
+    return nothing
+end
+
 include("fv_smesh/fv_2d.jl")
 end # @muladd

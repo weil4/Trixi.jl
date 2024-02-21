@@ -222,8 +222,10 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
         for i in node_index_start:(node_index_end - 1)
             node1 = voronoi_vertices[i]
             node2 = voronoi_vertices[i + 1]
-            x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node1)
-            x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node2)
+            x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
+                                      node1)
+            x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
+                                      node2)
 
             volume[element] += x_node1[1] * x_node2[2] -
                                x_node1[2] * x_node2[1]
@@ -232,8 +234,10 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
         end
         node_last = voronoi_vertices[node_index_end]
         node_first = voronoi_vertices[node_index_start]
-        x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node_last)
-        x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver, node_first)
+        x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
+                                  node_last)
+        x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
+                                  node_first)
         volume[element] += x_node1[1] * x_node2[2] -
                            x_node1[2] * x_node2[1]
         volume[element] *= 0.5

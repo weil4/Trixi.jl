@@ -228,6 +228,30 @@ function save_mesh_file(mesh::T8codeMesh, output_directory, timestep, mpi_parall
     return joinpath(output_directory, "dummy_mesh.h5")
 end
 
+function save_mesh_file(mesh::Union{TriangularMesh, PolygonMesh}, output_directory)
+    # Create output directory (if it does not exist)
+    mkpath(output_directory)
+
+    filename = joinpath(output_directory, "mesh.h5")
+
+    # Open file (clobber existing content)
+    h5open(filename, "w") do file
+        # Add context information as attributes
+        attributes(file)["mesh_type"] = get_name(mesh)
+        attributes(file)["ndims"] = ndims(mesh)
+        attributes(file)["n_elements"] = mesh.n_elements
+        if mesh isa PolygonMesh
+            attributes(file)["type_of_mesh"] = string(mesh.mesh_type)
+            attributes(file)["orthogonal_boundary_edges"] = mesh.orthogonal_boundary_edges
+        end
+        # attributes(file)["periodicity"] = collect(mesh.periodicity)
+
+        file["data_points"] = mesh.data_points
+    end
+
+    return filename
+end
+
 """
     load_mesh(restart_file::AbstractString; n_cells_max)
 
@@ -317,6 +341,26 @@ function load_mesh_serial(mesh_file::AbstractString; n_cells_max, RealT)
 
         mesh = P4estMesh{ndims}(p4est, tree_node_coordinates,
                                 nodes, boundary_names, "", false, true)
+    elseif mesh_type == "TriangularMesh"
+        data_points = h5open(mesh_file, "r") do file
+            return read(file["data_points"])
+        end
+
+        mesh = TriangularMesh(data_points,
+                              unsaved_changes = false)
+        mesh.current_filename = mesh_file
+    elseif mesh_type == "PolygonMesh"
+        data_points, type_of_mesh, orthogonal_boundary_edges = h5open(mesh_file,
+                                                                      "r") do file
+            return read(file["data_points"]),
+                   read(attributes(file)["type_of_mesh"]),
+                   read(attributes(file)["orthogonal_boundary_edges"])
+        end
+
+        mesh = PolygonMesh(data_points, mesh_type = Symbol(type_of_mesh),
+                           orthogonal_boundary_edges = orthogonal_boundary_edges,
+                           unsaved_changes = false)
+        mesh.current_filename = mesh_file
     else
         error("Unknown mesh type!")
     end

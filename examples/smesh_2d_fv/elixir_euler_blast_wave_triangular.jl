@@ -53,10 +53,15 @@ analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
+save_solution = SaveSolutionCallback(interval = 20,
+                                     save_initial_solution = true,
+                                     save_final_solution = true,
+                                     solution_variables = cons2prim)
+
 stepsize_callback = StepsizeCallback(cfl = 0.05)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        stepsize_callback)#, save_solution)
+                        save_solution, stepsize_callback)
 
 ###############################################################################
 # run the simulation
@@ -65,15 +70,3 @@ sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false),#Euler(),
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
             save_everystep = false, saveat = 0.1, callback = callbacks);
 summary_callback()
-
-# using Plots; pyplot()
-# anim = @animate for i in eachindex(sol.u)
-#     u_i = Trixi.wrap_array(sol.u[i], semi)
-#     surface(semi.cache.midpoints[1, :], semi.cache.midpoints[2, :], u_i[1, :],
-#                     #=zaxis=[1.8, 2.2],=# xlabel="x", ylabel="y", title="t=$(sol.t[i])")
-# end
-# gif(anim, "anim_fps15.gif", fps = 15)
-# plt = display(surface(semi.cache.midpoints[1, :], semi.cache.midpoints[2, :], Trixi.wrap_array(sol.u[1], semi)[1, :]))
-# plt = display(surface(semi.cache.midpoints[1, :], semi.cache.midpoints[2, :], Trixi.wrap_array(sol.u[end], semi)[1, :]))
-# scatter(semi.cache.data_points[1, :], semi.cache.data_points[2, :], markercolor=:red, label="points")
-# scatter!(semi.cache.midpoints[1, :], semi.cache.midpoints[2, :], markercolor=:blue, label="midpoints")
