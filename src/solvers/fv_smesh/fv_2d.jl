@@ -242,6 +242,7 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
                            x_node1[2] * x_node2[1]
         volume[element] *= 0.5
 
+        # TODO: Calculation of dx useful?
         dx[element] = max(dx[element], norm(x_node1 - x_node2))
     end
 
