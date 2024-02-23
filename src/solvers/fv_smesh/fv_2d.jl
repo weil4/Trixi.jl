@@ -219,9 +219,14 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
         node_index_end = voronoi_vertices_interval[2, element]
 
         # Shoelace formula
-        for i in node_index_start:(node_index_end - 1)
-            node1 = voronoi_vertices[i]
-            node2 = voronoi_vertices[i + 1]
+        for i in node_index_start:node_index_end
+            if i == node_index_end
+                node1 = voronoi_vertices[node_index_end]
+                node2 = voronoi_vertices[node_index_start]
+            else
+                node1 = voronoi_vertices[i]
+                node2 = voronoi_vertices[i + 1]
+            end
             x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
                                       node1)
             x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
@@ -232,14 +237,6 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
 
             dx[element] = max(dx[element], norm(x_node1 - x_node2))
         end
-        node_last = voronoi_vertices[node_index_end]
-        node_first = voronoi_vertices[node_index_start]
-        x_node1 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
-                                  node_last)
-        x_node2 = get_node_coords(voronoi_vertices_coordinates, equations, solver,
-                                  node_first)
-        volume[element] += x_node1[1] * x_node2[2] -
-                           x_node1[2] * x_node2[1]
         volume[element] *= 0.5
 
         # TODO: Calculation of dx useful?
