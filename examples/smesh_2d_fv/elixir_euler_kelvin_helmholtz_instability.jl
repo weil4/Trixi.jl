@@ -43,7 +43,7 @@ coordinates_max = [1.0, 1.0]
 
 initial_refinement_level = 5
 n_points_x = 2^initial_refinement_level
-n_points_y = 2^initial_refinement_level
+n_points_y = 2^initial_refinement_level + 1
 data_points = mesh_basic(coordinates_min, coordinates_max, n_points_x, n_points_y)
 # mesh = PolygonMesh(data_points)
 mesh = TriangularMesh(data_points)
@@ -66,7 +66,7 @@ save_solution = SaveSolutionCallback(interval = 20,
                                      save_final_solution = true,
                                      solution_variables = cons2prim)
 
-stepsize_callback = StepsizeCallback(cfl = 0.9)
+stepsize_callback = StepsizeCallback(cfl = 0.95)
 
 callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
                         save_solution, stepsize_callback)
@@ -76,5 +76,5 @@ callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false),#Euler(),
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
-            save_everystep = false, saveat = 0.1, callback = callbacks);
+            save_everystep = false, callback = callbacks);
 summary_callback() # print the timer summary

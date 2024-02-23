@@ -56,9 +56,10 @@ function calc_volume(data_points, triangulation_vertices, mesh::TriangularMesh,
 
         volume[element] *= 0.5
 
-        # TODO: Calculation of dx useful?
-        dx[element] = max(norm(x_node1 - x_node2), norm(x_node1 - x_node3),
-                          norm(x_node2 - x_node3))
+        perimeter = norm(x_node2 - x_node1) + norm(x_node3 - x_node2) + norm(x_node1 - x_node3)
+
+        # dx = inner_circle_radius = area / perimeter
+        dx[element] = volume[element] / perimeter
     end
 
     return volume, dx
@@ -212,11 +213,12 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
                      solver::FV)
     n_elements = nelements(mesh, equations, solver)
     volume = zeros(eltype(voronoi_vertices_coordinates), n_elements)
-    dx = zeros(eltype(voronoi_vertices_coordinates), n_elements)
+    dx = similar(volume)
 
     for element in eachindex(volume)
         node_index_start = voronoi_vertices_interval[1, element]
         node_index_end = voronoi_vertices_interval[2, element]
+        perimeter = zero(eltype(dx))
 
         # Shoelace formula
         for i in node_index_start:node_index_end
@@ -235,12 +237,12 @@ function calc_volume(voronoi_vertices_coordinates, voronoi_vertices,
             volume[element] += x_node1[1] * x_node2[2] -
                                x_node1[2] * x_node2[1]
 
-            dx[element] = max(dx[element], norm(x_node1 - x_node2))
+            perimeter += norm(x_node2 - x_node1)
         end
         volume[element] *= 0.5
 
-        # TODO: Calculation of dx useful?
-        dx[element] = max(dx[element], norm(x_node1 - x_node2))
+        # dx = inner_circle_radius = 2 * area / perimeter
+        dx[element] = 2.0 * volume[element] / perimeter
     end
 
     return volume, dx
