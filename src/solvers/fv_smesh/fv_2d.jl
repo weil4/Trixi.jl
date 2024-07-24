@@ -17,7 +17,8 @@ function create_cache(mesh::TriangularMesh, equations,
 
     # Calculate neighbors in triangulation
     triangulation_neighbors = delaunay_compute_neighbors(data_points,
-                                                         triangulation_vertices)
+                                                         triangulation_vertices,
+                                                         periodicity = mesh.periodicity)
 
     volume, dx = calc_volume(data_points, triangulation_vertices, mesh, equations,
                              solver)
@@ -56,7 +57,8 @@ function calc_volume(data_points, triangulation_vertices, mesh::TriangularMesh,
 
         volume[element] *= 0.5
 
-        perimeter = norm(x_node2 - x_node1) + norm(x_node3 - x_node2) + norm(x_node1 - x_node3)
+        perimeter = norm(x_node2 - x_node1) + norm(x_node3 - x_node2) +
+                    norm(x_node1 - x_node3)
 
         # dx = inner_circle_radius = area / perimeter
         dx[element] = volume[element] / perimeter
@@ -195,6 +197,7 @@ function create_cache(mesh::PolygonMesh, equations,
                                                          triangulation_vertices)
 
     voronoi_neighbors = voronoi_compute_neighbors(triangulation_vertices,
+                                                  voronoi_vertices_coordinates,
                                                   voronoi_vertices,
                                                   voronoi_vertices_interval,
                                                   triangulation_neighbors)

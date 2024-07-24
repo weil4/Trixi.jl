@@ -58,6 +58,17 @@ function Base.show(io::IO, ::MIME"text/plain", mesh::TriangularMesh)
     end
 end
 
+"""
+    PolygonMesh(data_points; mesh_type = :standard_voronoi,
+                orthogonal_boundary_edges = true,
+                current_filename = "", unsaved_changes = true)
+
+There are different mesh types:
+- `:standard_voronoi` => standard voronoi, but use centroid if the circumcenter lies outside the triangle
+- `:centroids` => not an actual voronoi, always use centroids and not circumcenters as vertices for the mesh
+- `:incenters` => not an actual voronoi, always use incenters and not circumcenters as vertices for the mesh
+- `:pure_voronoi` => pure Voronoi mesh (just for experiments, should not be used for computation)
+"""
 mutable struct PolygonMesh{NDIMS, RealT <: Real} <: AbstractMesh{NDIMS}
     mesh_type::Symbol
     orthogonal_boundary_edges::Bool
