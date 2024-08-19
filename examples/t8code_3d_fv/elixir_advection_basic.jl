@@ -9,15 +9,19 @@ initial_condition = initial_condition_convergence_test
 solver = FV(order = 2, extended_reconstruction_stencil = false,
             surface_flux = flux_lax_friedrichs)
 
-# cmesh = Trixi.cmesh_new_periodic_hybrid()
-cmesh = Trixi.cmesh_quad_3d(periodicity = (true, true, true))
-# cmesh = Trixi.cmesh_new_periodic_tri()
-mesh = T8codeMesh(cmesh, solver,
+coordinates_min = (-1.0, -1.0, -1.0) # minimum coordinates (min(x), min(y), min(z))
+coordinates_max = (1.0, 1.0, 1.0) # maximum coordinates (max(x), max(y), max(z))
+
+trees_per_dimension = (8, 8, 8)
+
+mesh = T8codeMesh(trees_per_dimension,
+                  coordinates_min = coordinates_min, coordinates_max = coordinates_max,
                   initial_refinement_level = 3)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
 
-ode = semidiscretize(semi, (0.0, 1.0));
+tspan = (0.0, 1.0)
+ode = semidiscretize(semi, tspan);
 
 summary_callback = SummaryCallback()
 
@@ -26,7 +30,7 @@ analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
-save_solution = SaveSolutionCallback(interval = 1,
+save_solution = SaveSolutionCallback(interval = 10,
                                      solution_variables = cons2prim)
 
 stepsize_callback = StepsizeCallback(cfl = 0.9)

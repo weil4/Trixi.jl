@@ -248,9 +248,12 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{2}, equations, solver
     epsilon = 1.0e-13
 
     for element in eachelement(mesh, solver, cache)
+        # The actual number of used stencils is `n_stencil_neighbors + 1`, since the full stencil is additionally used once.
         if solver.extended_reconstruction_stencil
+            # Number of faces = Number of corners
             n_stencil_neighbors = elements.num_faces[element]
         else
+            # Number of direct (edge) neighbors
             n_stencil_neighbors = length(reconstruction_stencil[element])
         end
 
@@ -262,7 +265,7 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{2}, equations, solver
             d .= zero(eltype(u))
 
             if solver.extended_reconstruction_stencil
-                calc_gradient_extended!(stencil, n_stencil_neighbors, element, a, d,
+                calc_gradient_extended!(stencil, element, a, d,
                                         reconstruction_stencil, reconstruction_distance,
                                         reconstruction_corner_elements, solution_data,
                                         equations, solver, cache)
@@ -302,14 +305,14 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{2}, equations, solver
                 indicator = sum(gradient .^ 2)
                 lambda_j = (j == 1) ? lambda[1] : lambda[2]
                 weight = (lambda_j / (indicator + epsilon))^r
-                for x in axes(reconstruction_gradient_limited, 1)
-                    reconstruction_gradient_limited[x, v, element] += weight *
-                                                                      gradient[x]
+                for dim in axes(reconstruction_gradient_limited, 1)
+                    reconstruction_gradient_limited[dim, v, element] += weight *
+                                                                        gradient[dim]
                 end
                 weight_sum += weight
             end
-            for x in axes(reconstruction_gradient_limited, 1)
-                reconstruction_gradient_limited[x, v, element] /= weight_sum
+            for dim in axes(reconstruction_gradient_limited, 1)
+                reconstruction_gradient_limited[dim, v, element] /= weight_sum
             end
         end
     end
@@ -347,11 +350,11 @@ end
     return nothing
 end
 
-@inline function calc_gradient_extended!(stencil, n_stencil_neighbors, element, a, d,
+@inline function calc_gradient_extended!(stencil, element, a, d,
                                          reconstruction_stencil,
                                          reconstruction_distance,
                                          reconstruction_corner_elements, solution_data,
-                                         equations, solver, cache)
+                                         equations::AbstractEquations{2}, solver, cache)
     if stencil == 1
         # Full stencil
         for i in eachindex(reconstruction_stencil[element])
@@ -432,10 +435,12 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{3}, equations, solver
     epsilon = 1.0e-13
 
     for element in eachelement(mesh, solver, cache)
+        # The actual number of used stencils is `n_stencil_neighbors + 1`, since the full stencil is additionally used once.
         if solver.extended_reconstruction_stencil
+            # Number of faces = Number of corners
             n_stencil_neighbors = elements.num_faces[element]
-            error("not yet supported!")
         else
+            # Number of direct (surface) neighbors
             n_stencil_neighbors = length(reconstruction_stencil[element])
         end
 
@@ -447,11 +452,10 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{3}, equations, solver
             d .= zero(eltype(u))
 
             if solver.extended_reconstruction_stencil
-                calc_gradient_extended!(stencil, n_stencil_neighbors, element, a, d,
+                calc_gradient_extended!(stencil, element, a, d,
                                         reconstruction_stencil, reconstruction_distance,
                                         reconstruction_corner_elements, solution_data,
                                         equations, solver, cache)
-                error("Not supported yet")
             else
                 calc_gradient_simple!(stencil, n_stencil_neighbors, element, a, d,
                                       reconstruction_stencil, reconstruction_distance,
@@ -460,7 +464,9 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{3}, equations, solver
 
             # Divide by determinant
             # Determinant    = a11  * (a22  * a33  -  a23^2 ) - a12  * (a12  * a33  - a13  * a23 ) + a13  * (a12  * a23  - a22  * a13 )
-            AT_A_determinant = a[1] * (a[4] * a[6] -  a[5]^2) - a[2] * (a[2] * a[6] - a[3] * a[5]) + a[3] * (a[2] * a[5] - a[4] * a[3])
+            AT_A_determinant = a[1] * (a[4] * a[6] - a[5]^2) -
+                               a[2] * (a[2] * a[6] - a[3] * a[5]) +
+                               a[3] * (a[2] * a[5] - a[4] * a[3])
             if isapprox(AT_A_determinant, 0.0)
                 for v in eachvariable(equations)
                     reconstruction_gradient[:, v, stencil, element] .= 0.0
@@ -482,9 +488,18 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{3}, equations, solver
 
             # Solving least square problem
             for v in eachvariable(equations)
-                reconstruction_gradient[1, v, stencil, element] = 1 / AT_A_determinant * (m11 * d[v, 1] + m12 * d[v, 2] + m13 * d[v, 3])
-                reconstruction_gradient[2, v, stencil, element] = 1 / AT_A_determinant * (m12 * d[v, 1] + m22 * d[v, 2] + m23 * d[v, 3])
-                reconstruction_gradient[3, v, stencil, element] = 1 / AT_A_determinant * (m13 * d[v, 1] + m23 * d[v, 2] + m33 * d[v, 3])
+                reconstruction_gradient[1, v, stencil, element] = 1 / AT_A_determinant *
+                                                                  (m11 * d[v, 1] +
+                                                                   m12 * d[v, 2] +
+                                                                   m13 * d[v, 3])
+                reconstruction_gradient[2, v, stencil, element] = 1 / AT_A_determinant *
+                                                                  (m12 * d[v, 1] +
+                                                                   m22 * d[v, 2] +
+                                                                   m23 * d[v, 3])
+                reconstruction_gradient[3, v, stencil, element] = 1 / AT_A_determinant *
+                                                                  (m13 * d[v, 1] +
+                                                                   m23 * d[v, 2] +
+                                                                   m33 * d[v, 3])
             end
         end
 
@@ -499,14 +514,14 @@ function calc_gradient_reconstruction!(u, mesh::T8codeMesh{3}, equations, solver
                 indicator = sum(gradient .^ 2)
                 lambda_j = (j == 1) ? lambda[1] : lambda[2]
                 weight = (lambda_j / (indicator + epsilon))^r
-                for x in axes(reconstruction_gradient_limited, 1)
-                    reconstruction_gradient_limited[x, v, element] += weight *
-                                                                      gradient[x]
+                for dim in axes(reconstruction_gradient_limited, 1)
+                    reconstruction_gradient_limited[dim, v, element] += weight *
+                                                                        gradient[dim]
                 end
                 weight_sum += weight
             end
-            for x in axes(reconstruction_gradient_limited, 1)
-                reconstruction_gradient_limited[x, v, element] /= weight_sum
+            for dim in axes(reconstruction_gradient_limited, 1)
+                reconstruction_gradient_limited[dim, v, element] /= weight_sum
             end
         end
     end
@@ -526,6 +541,68 @@ end
         if i + 1 != stencil
             neighbor = reconstruction_stencil[element][i]
             distance = reconstruction_distance[element][i]
+            a[1] += distance[1]^2 # = a11
+            a[2] += distance[1] * distance[2] # = a12
+            a[3] += distance[1] * distance[3]
+            a[4] += distance[2]^2
+            a[5] += distance[2] * distance[3]
+            a[6] += distance[3]^2
+
+            for v in eachvariable(equations)
+                d[v, 1] += distance[1] *
+                           (solution_data[neighbor].u[v] -
+                            solution_data[element].u[v])
+                d[v, 2] += distance[2] *
+                           (solution_data[neighbor].u[v] -
+                            solution_data[element].u[v])
+                d[v, 3] += distance[3] *
+                           (solution_data[neighbor].u[v] -
+                            solution_data[element].u[v])
+            end
+        end
+    end
+
+    return nothing
+end
+
+@inline function calc_gradient_extended!(stencil, element, a, d,
+                                         reconstruction_stencil,
+                                         reconstruction_distance,
+                                         reconstruction_corner_elements, solution_data,
+                                         equations::AbstractEquations{3}, solver, cache)
+    if stencil == 1
+        # Full stencil
+        for i in eachindex(reconstruction_stencil[element])
+            neighbor = reconstruction_stencil[element][i]
+            distance = reconstruction_distance[element][i]
+            a[1] += distance[1]^2 # = a11
+            a[2] += distance[1] * distance[2] # = a12
+            a[3] += distance[1] * distance[3]
+            a[4] += distance[2]^2
+            a[5] += distance[2] * distance[3]
+            a[6] += distance[3]^2
+
+            for v in eachvariable(equations)
+                d[v, 1] += distance[1] *
+                           (solution_data[neighbor].u[v] -
+                            solution_data[element].u[v])
+                d[v, 2] += distance[2] *
+                           (solution_data[neighbor].u[v] -
+                            solution_data[element].u[v])
+                d[v, 3] += distance[3] *
+                           (solution_data[neighbor].u[v] -
+                            solution_data[element].u[v])
+            end
+        end
+    else
+        # Partial stencils
+        midpoint_element = get_node_coords(cache.elements.midpoint, equations, solver,
+                                           element)
+        for neighbor in reconstruction_corner_elements[stencil - 1, element]
+            midpoint_neighbor = get_node_coords(cache.elements.midpoint, equations,
+                                                solver, neighbor)
+            distance = midpoint_neighbor .- midpoint_element
+
             a[1] += distance[1]^2 # = a11
             a[2] += distance[1] * distance[2] # = a12
             a[3] += distance[1] * distance[3]

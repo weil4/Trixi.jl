@@ -1,23 +1,24 @@
 using OrdinaryDiffEq
 using Trixi
 
+####################################################
+
 advection_velocity = (0.2, -0.7, 0.5)
 equations = LinearScalarAdvectionEquation3D(advection_velocity)
 
-initial_condition = initial_condition_convergence_test
+initial_condition = initial_condition_gauss
 
-solver = FV(order = 2, extended_reconstruction_stencil = false,
-            surface_flux = flux_lax_friedrichs)
+solver = FV(order = 2, surface_flux = flux_lax_friedrichs)
 
+initial_refinement_level = 4
 # cmesh = Trixi.cmesh_new_periodic_hybrid()
 cmesh = Trixi.cmesh_quad_3d(periodicity = (true, true, true))
-# cmesh = Trixi.cmesh_new_periodic_tri()
-mesh = T8codeMesh(cmesh, solver,
-                  initial_refinement_level = 3)
+mesh = T8codeMesh(cmesh, solver, initial_refinement_level = initial_refinement_level)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
 
-ode = semidiscretize(semi, (0.0, 1.0));
+tspan = (0.0, 5.0)
+ode = semidiscretize(semi, tspan);
 
 summary_callback = SummaryCallback()
 
@@ -26,18 +27,18 @@ analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
-save_solution = SaveSolutionCallback(interval = 1,
+save_solution = SaveSolutionCallback(interval = 10,
                                      solution_variables = cons2prim)
 
-stepsize_callback = StepsizeCallback(cfl = 0.9)
+stepsize_callback = StepsizeCallback(cfl = 0.7)
 
-callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback,
-                        stepsize_callback, save_solution)
+callbacks = CallbackSet(summary_callback, save_solution, analysis_callback, alive_callback,
+                        stepsize_callback)
 
 ###############################################################################
 # run the simulation
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false),
-            dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
+sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false),#Euler(),
+            dt = 5.0e-2, # solve needs some value here but it will be overwritten by the stepsize_callback
             save_everystep = false, callback = callbacks);
 summary_callback()

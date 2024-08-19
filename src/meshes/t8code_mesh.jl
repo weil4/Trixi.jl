@@ -1597,11 +1597,12 @@ function cmesh_quad_3d(; comm = mpi_comm(), periodicity = (true, true, true))::t
     linear_geom = t8_geometry_linear_new(n_dims)
 
     # This is how the cmesh looks like. The numbers are the tree numbers:
-    #
-    #   +---+
-    #   |   |
-    #   | 0 |
-    #   |   |
+    #     +---+
+    #    /   /|
+    #   +---+ |
+    #   |   | |
+    #   | 0 | +
+    #   |   |/
     #   +---+
     #
 
