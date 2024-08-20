@@ -9,11 +9,10 @@ initial_condition = initial_condition_convergence_test
 solver = FV(order = 2, extended_reconstruction_stencil = false,
             surface_flux = flux_lax_friedrichs)
 
-# cmesh = Trixi.cmesh_new_periodic_hybrid()
+# TODO: There are no other cmesh functions implemented yet in 3d.
 cmesh = Trixi.cmesh_quad_3d(periodicity = (true, true, true))
-# cmesh = Trixi.cmesh_new_periodic_tri()
 mesh = T8codeMesh(cmesh, solver,
-                  initial_refinement_level = 3)
+                  initial_refinement_level = 4)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
 

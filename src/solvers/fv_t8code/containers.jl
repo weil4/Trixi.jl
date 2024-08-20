@@ -352,7 +352,7 @@ function init_reconstruction_stencil!(elements, interfaces, boundaries,
         face_midpoint_element1 = domain_data[element1].face_midpoints[face_element1]
         face_midpoint_element2 = domain_data[element2].face_midpoints[face_element2]
 
-        # How to handle periodic boundaries?
+        # TODO: How to handle periodic boundaries?
         if isapprox(face_midpoint_element1, face_midpoint_element2)
             distance = midpoint_element2 .- midpoint_element1
         else

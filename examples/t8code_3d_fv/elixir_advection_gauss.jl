@@ -11,7 +11,8 @@ initial_condition = initial_condition_gauss
 solver = FV(order = 2, surface_flux = flux_lax_friedrichs)
 
 initial_refinement_level = 4
-# cmesh = Trixi.cmesh_new_periodic_hybrid()
+
+# TODO: There are no other cmesh functions implemented yet in 3d.
 cmesh = Trixi.cmesh_quad_3d(periodicity = (true, true, true))
 mesh = T8codeMesh(cmesh, solver, initial_refinement_level = initial_refinement_level)
 
