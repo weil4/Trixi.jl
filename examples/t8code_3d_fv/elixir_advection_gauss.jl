@@ -13,7 +13,7 @@ solver = FV(order = 2, surface_flux = flux_lax_friedrichs)
 initial_refinement_level = 4
 
 # TODO: There are no other cmesh functions implemented yet in 3d.
-cmesh = Trixi.cmesh_quad_3d(periodicity = (true, true, true))
+cmesh = Trixi.cmesh_new_quad_3d(periodicity = (true, true, true))
 mesh = T8codeMesh(cmesh, solver, initial_refinement_level = initial_refinement_level)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)

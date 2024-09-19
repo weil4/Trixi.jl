@@ -10,7 +10,7 @@ solver = FV(order = 2, extended_reconstruction_stencil = false,
             surface_flux = flux_lax_friedrichs)
 
 # TODO: There are no other cmesh functions implemented yet in 3d.
-cmesh = Trixi.cmesh_quad_3d(periodicity = (true, true, true))
+cmesh = Trixi.cmesh_new_quad_3d(periodicity = (true, true, true))
 mesh = T8codeMesh(cmesh, solver,
                   initial_refinement_level = 4)
 

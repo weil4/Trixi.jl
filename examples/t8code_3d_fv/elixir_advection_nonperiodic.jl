@@ -21,7 +21,7 @@ solver = FV(order = 2, surface_flux = flux_lax_friedrichs)
 
 # TODO: When using mesh construction as in elixir_advection_basic.jl boundary Symbol :all is not defined
 initial_refinement_level = 5
-cmesh = Trixi.cmesh_quad_3d(periodicity = (false, false, false))
+cmesh = Trixi.cmesh_new_quad_3d(periodicity = (false, false, false))
 mesh = T8codeMesh(cmesh, solver, initial_refinement_level = initial_refinement_level)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,

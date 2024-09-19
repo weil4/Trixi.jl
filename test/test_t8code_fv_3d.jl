@@ -44,11 +44,12 @@ mkdir(outdir)
 #     end
 # end
 
+# NOTE: Since I use 1x1x1 tree instead of 8x8x8, I need to increase the resolution three times by the factor of 2.
 @trixi_testset "elixir_advection_basic.jl" begin
     @trixi_testset "first-order FV" begin
         @test_trixi_include(joinpath(EXAMPLES_DIR, "elixir_advection_basic.jl"),
                             order=1,
-                            initial_refinement_level=2,
+                            initial_refinement_level=2+3,
                             l2=[0.2848617953369851],
                             linf=[0.3721898718954475])
         # Ensure that we do not have excessive memory allocations
@@ -62,7 +63,7 @@ mkdir(outdir)
     end
     @trixi_testset "second-order FV" begin
         @test_trixi_include(joinpath(EXAMPLES_DIR, "elixir_advection_basic.jl"),
-                            initial_refinement_level=2,
+                            initial_refinement_level=2+3,
                             l2=[0.10381089565603231],
                             linf=[0.13787405651527007])
         # Ensure that we do not have excessive memory allocations
@@ -76,7 +77,7 @@ mkdir(outdir)
     end
     @trixi_testset "second-order FV, extended reconstruction stencil" begin
         @test_trixi_include(joinpath(EXAMPLES_DIR, "elixir_advection_basic.jl"),
-                            initial_refinement_level=2,
+                            initial_refinement_level=2+3,
                             extended_reconstruction_stencil=true,
                             l2=[0.24826100771542928],
                             linf=[0.3799973662927152])
