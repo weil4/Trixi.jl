@@ -49,16 +49,22 @@ function f(cmesh, gtreeid, ref_coords, num_coords, out_coords, tree_data, user_d
     return nothing
 end
 
-trees_per_dimension = (1, 1, 1)
+function f_c()
+    @cfunction($f, Cvoid,
+               (t8_cmesh_t, t8_gloidx_t, Ptr{Cdouble}, Csize_t,
+                Ptr{Cdouble}, Ptr{Cvoid}, Ptr{Cvoid}))
+end
+
+trees_per_dimension = (2, 2, 2)
 
 eclass = T8_ECLASS_HEX
 mesh = T8codeMesh(trees_per_dimension, eclass;
-                  mapping = @t8_analytic_callback(f),
+                  mapping = f_c(),
                   # Plan is to use either
                   # coordinates_max = coordinates_max, coordinates_min = coordinates_min,
                   # or at least
                   # mapping = mapping,
-                  initial_refinement_level = 6)
+                  initial_refinement_level = 5)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
 

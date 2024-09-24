@@ -484,7 +484,7 @@ function T8codeMesh(trees_per_dimension, eclass;
         vertices = Vector{Cdouble}(undef, 3 * 8 * num_trees) # 3 (dimensions) * 8 (vertices per tree) * num_trees
 
         for itree_z in 1:trees_per_dimension[3], itree_y in 1:trees_per_dimension[2], itree_x in 1:trees_per_dimension[1]
-            index = trees_per_dimension[2] * 3 * 8 * (itree_z - 1) +
+            index = trees_per_dimension[1] * trees_per_dimension[2] * 3 * 8 * (itree_z - 1) +
                     trees_per_dimension[1] * 3 * 8 * (itree_y - 1) +
                     3 * 8 * (itree_x - 1) + 1
 
@@ -567,7 +567,24 @@ function T8codeMesh(trees_per_dimension, eclass;
                 t8_cmesh_set_join(cmesh, 0, 0, 4, 5, 0)
             end
         elseif num_trees == 8
-            error("Not supported")
+            if periodicity[1]
+                t8_cmesh_set_join(cmesh, 0, 1, 0, 1, 0)
+                t8_cmesh_set_join(cmesh, 2, 3, 0, 1, 0)
+                t8_cmesh_set_join(cmesh, 4, 5, 0, 1, 0)
+                t8_cmesh_set_join(cmesh, 6, 7, 0, 1, 0)
+            end
+            if periodicity[2]
+                t8_cmesh_set_join(cmesh, 0, 2, 2, 3, 0)
+                t8_cmesh_set_join(cmesh, 1, 3, 2, 3, 0)
+                t8_cmesh_set_join(cmesh, 4, 6, 2, 3, 0)
+                t8_cmesh_set_join(cmesh, 5, 7, 2, 3, 0)
+            end
+            if periodicity[3]
+                t8_cmesh_set_join(cmesh, 0, 4, 4, 5, 0)
+                t8_cmesh_set_join(cmesh, 1, 5, 4, 5, 0)
+                t8_cmesh_set_join(cmesh, 2, 6, 4, 5, 0)
+                t8_cmesh_set_join(cmesh, 3, 7, 4, 5, 0)
+            end
             t8_cmesh_set_join_by_stash(cmesh, C_NULL, 0)
         else
             error("Not supported trees_per_dimension")
