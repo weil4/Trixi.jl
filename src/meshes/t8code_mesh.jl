@@ -384,22 +384,23 @@ function T8codeMesh(trees_per_dimension, eclass;
     end
 
     do_partition = 0
-    if NDIMS == 2
-        cmesh_ref = Ref(t8_cmesh_t())
-        t8_cmesh_init(cmesh_ref)
-        cmesh = cmesh_ref[]
+    cmesh_ref = Ref(t8_cmesh_t())
+    t8_cmesh_init(cmesh_ref)
+    cmesh = cmesh_ref[]
 
-        @assert(allequal(trees_per_dimension),
+    @assert(allequal(trees_per_dimension),
                 "Different trees per dimensions are not supported for quad mesh. `trees_per_dimension`: $trees_per_dimension")
-        num_trees = prod(trees_per_dimension) * 1 # 1 = number of trees for single hypercube with quads
+    num_trees = prod(trees_per_dimension) * 1 # 1 = number of trees for single hypercube with quads
 
+    vertices_per_tree = 2^NDIMS # number of vertices (=corners) in one tree
+    vertices = Vector{Cdouble}(undef, 3 * vertices_per_tree * num_trees) # 3 (dimensions) * vertices_per_tree) * num_trees
+    if NDIMS == 2
         coordinates_tree_x = range(-1.0, 1.0, length = trees_per_dimension[1] + 1)
         coordinates_tree_y = range(-1.0, 1.0, length = trees_per_dimension[2] + 1)
-        vertices = Vector{Cdouble}(undef, 3 * 4 * num_trees) # 3 (dimensions) * 4 (vertices per tree) * num_trees
 
         for itree_y in 1:trees_per_dimension[2], itree_x in 1:trees_per_dimension[1]
-            index = trees_per_dimension[1] * 3 * 4 * (itree_y - 1) +
-                    3 * 4 * (itree_x - 1) + 1
+            index = trees_per_dimension[1] * 3 * vertices_per_tree * (itree_y - 1) +
+                    3 * vertices_per_tree * (itree_x - 1) + 1
             vertices[index] = coordinates_tree_x[itree_x]
             vertices[index + 1] = coordinates_tree_y[itree_y]
             vertices[index + 2] = 0.0
@@ -419,74 +420,15 @@ function T8codeMesh(trees_per_dimension, eclass;
             vertices[index + 1] = coordinates_tree_y[itree_y + 1]
             vertices[index + 2] = 0.0
         end
-
-        # analytical = trixi_t8_mapping_c(mapping)
-        analytical = mapping
-        name = ""
-        user_data = vertices
-        # user_data = C_NULL
-
-        jacobian = C_NULL # type: t8_geom_analytic_jacobian_fn
-        # TODO: Since @t8_load_tree_data is not yet included into T8code.jl, precompiling Trixi fails because of this line.
-        # load_tree_data = @t8_load_tree_data(t8_geom_load_tree_data_vertices) # type: t8_geom_load_tree_data_fn
-        # For now, I remove it and pass C_NULL. Then, `elixir_advection_basic.jl` will fail with a SegFault.
-        load_tree_data = C_NULL
-        tree_negative_volume = C_NULL # type: t8_geom_tree_negative_volume_fn
-
-        geometry = t8_geometry_analytic_new(NDIMS, name, analytical, jacobian,
-                                            load_tree_data, tree_negative_volume, user_data)
-
-        t8_cmesh_register_geometry(cmesh, geometry)
-
-        for itree in 1:num_trees
-            offset_vertices = 3 * 4 * (itree - 1)
-            t8_cmesh_set_tree_class(cmesh, itree - 1, eclass)
-            t8_cmesh_set_tree_vertices(cmesh, itree - 1,
-                                       @views(vertices[(1 + offset_vertices):end]), 4)
-        end
-
-        # Note and TODO:
-        # Only hardcoded to `trees_per_dimension = (1, 1) or (2, 2)`
-        if num_trees == 1
-            if periodicity[1]
-                t8_cmesh_set_join(cmesh, 0, 0, 0, 1, 0)
-            end
-            if periodicity[2]
-                t8_cmesh_set_join(cmesh, 0, 0, 2, 3, 0)
-            end
-        elseif num_trees == 4
-            if periodicity[1]
-                t8_cmesh_set_join(cmesh, 0, 1, 0, 1, 0)
-                t8_cmesh_set_join(cmesh, 2, 3, 0, 1, 0)
-            end
-            if periodicity[2]
-                t8_cmesh_set_join(cmesh, 0, 2, 2, 3, 0)
-                t8_cmesh_set_join(cmesh, 1, 3, 2, 3, 0)
-            end
-            t8_cmesh_set_join_by_stash(cmesh, C_NULL, 0)
-        else
-            error("Not supported trees_per_dimension")
-        end
-
-        t8_cmesh_commit(cmesh, mpi_comm())
     elseif NDIMS == 3
-        cmesh_ref = Ref(t8_cmesh_t())
-        t8_cmesh_init(cmesh_ref)
-        cmesh = cmesh_ref[]
-
-        @assert(allequal(trees_per_dimension),
-                "Different trees per dimensions are not supported for quad mesh. `trees_per_dimension`: $trees_per_dimension")
-        num_trees = prod(trees_per_dimension) * 1 # 1 = number of trees for single hypercube with quads
-
         coordinates_tree_x = range(-1.0, 1.0, length = trees_per_dimension[1] + 1)
         coordinates_tree_y = range(-1.0, 1.0, length = trees_per_dimension[2] + 1)
         coordinates_tree_z = range(-1.0, 1.0, length = trees_per_dimension[3] + 1)
-        vertices = Vector{Cdouble}(undef, 3 * 8 * num_trees) # 3 (dimensions) * 8 (vertices per tree) * num_trees
 
         for itree_z in 1:trees_per_dimension[3], itree_y in 1:trees_per_dimension[2], itree_x in 1:trees_per_dimension[1]
-            index = trees_per_dimension[1] * trees_per_dimension[2] * 3 * 8 * (itree_z - 1) +
-                    trees_per_dimension[1] * 3 * 8 * (itree_y - 1) +
-                    3 * 8 * (itree_x - 1) + 1
+            index = trees_per_dimension[1] * trees_per_dimension[2] * 3 * vertices_per_tree * (itree_z - 1) +
+                    trees_per_dimension[1] * 3 * vertices_per_tree * (itree_y - 1) +
+                    3 * vertices_per_tree * (itree_x - 1) + 1
 
             vertices[index] = coordinates_tree_x[itree_x]
             vertices[index + 1] = coordinates_tree_y[itree_y]
@@ -528,34 +470,59 @@ function T8codeMesh(trees_per_dimension, eclass;
             vertices[index + 1] = coordinates_tree_y[itree_y + 1]
             vertices[index + 2] = coordinates_tree_z[itree_z + 1]
         end
+    end
 
-        # analytical = trixi_t8_mapping_c(mapping)
-        analytical = mapping
-        name = ""
-        user_data = vertices
-        # user_data = C_NULL
+    # analytical = trixi_t8_mapping_c(mapping)
+    analytical = mapping
+    name = ""
+    user_data = vertices
+    # user_data = C_NULL
 
-        jacobian = C_NULL # type: t8_geom_analytic_jacobian_fn
-        # TODO: Since @t8_load_tree_data is not yet included into T8code.jl, precompiling Trixi fails because of this line.
-        load_tree_data = @t8_load_tree_data(t8_geom_load_tree_data_vertices) # type: t8_geom_load_tree_data_fn
-        # For now, I remove it and pass C_NULL. Then, `elixir_advection_basic.jl` will fail with a SegFault.
-        # load_tree_data = C_NULL
-        tree_negative_volume = C_NULL # type: t8_geom_tree_negative_volume_fn
+    jacobian = C_NULL # type: t8_geom_analytic_jacobian_fn
+    # TODO: Since @t8_load_tree_data is not yet included into T8code.jl, precompiling Trixi fails because of this line.
+    # load_tree_data = @t8_load_tree_data(t8_geom_load_tree_data_vertices) # type: t8_geom_load_tree_data_fn
+    # For now, I remove it and pass C_NULL. Then, `elixir_advection_basic.jl` will fail with a SegFault.
+    load_tree_data = C_NULL
+    tree_negative_volume = C_NULL # type: t8_geom_tree_negative_volume_fn
 
-        geometry = t8_geometry_analytic_new(NDIMS, name, analytical, jacobian,
-                                            load_tree_data, tree_negative_volume, user_data)
+    geometry = t8_geometry_analytic_new(NDIMS, name, analytical, jacobian,
+                                        load_tree_data, tree_negative_volume, user_data)
 
-        t8_cmesh_register_geometry(cmesh, geometry)
+    t8_cmesh_register_geometry(cmesh, geometry)
 
-        for itree in 1:num_trees
-            offset_vertices = 3 * 8 * (itree - 1)
-            t8_cmesh_set_tree_class(cmesh, itree - 1, eclass)
-            t8_cmesh_set_tree_vertices(cmesh, itree - 1,
-                                       @views(vertices[(1 + offset_vertices):end]), 8)
-        end
+    for itree in 1:num_trees
+        offset_vertices = 3 * vertices_per_tree * (itree - 1)
+        t8_cmesh_set_tree_class(cmesh, itree - 1, eclass)
+        t8_cmesh_set_tree_vertices(cmesh, itree - 1,
+                                    @views(vertices[(1 + offset_vertices):end]), vertices_per_tree)
+    end
 
+    if NDIMS == 2
         # Note and TODO:
         # Only hardcoded to `trees_per_dimension = (1, 1) or (2, 2)`
+        if num_trees == 1
+            if periodicity[1]
+                t8_cmesh_set_join(cmesh, 0, 0, 0, 1, 0)
+            end
+            if periodicity[2]
+                t8_cmesh_set_join(cmesh, 0, 0, 2, 3, 0)
+            end
+        elseif num_trees == 4
+            if periodicity[1]
+                t8_cmesh_set_join(cmesh, 0, 1, 0, 1, 0)
+                t8_cmesh_set_join(cmesh, 2, 3, 0, 1, 0)
+            end
+            if periodicity[2]
+                t8_cmesh_set_join(cmesh, 0, 2, 2, 3, 0)
+                t8_cmesh_set_join(cmesh, 1, 3, 2, 3, 0)
+            end
+            t8_cmesh_set_join_by_stash(cmesh, C_NULL, 0)
+        else
+            error("Not supported trees_per_dimension")
+        end
+    elseif NDIMS == 3
+        # Note and TODO:
+        # Only hardcoded to `trees_per_dimension = (1, 1, 1) or (2, 2, 2)`
         if num_trees == 1
             if periodicity[1]
                 t8_cmesh_set_join(cmesh, 0, 0, 0, 1, 0)
@@ -589,9 +556,8 @@ function T8codeMesh(trees_per_dimension, eclass;
         else
             error("Not supported trees_per_dimension")
         end
-
-        t8_cmesh_commit(cmesh, mpi_comm())
     end
+    t8_cmesh_commit(cmesh, mpi_comm())
 
     do_face_ghost = mpi_isparallel()
     scheme = t8_scheme_new_default_cxx()
