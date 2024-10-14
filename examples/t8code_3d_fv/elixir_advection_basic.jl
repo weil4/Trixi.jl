@@ -26,7 +26,7 @@ function mapping(xi, eta, zeta)
     return SVector(x, y, z)
 end
 
-function f(cmesh, gtreeid, ref_coords, num_coords, out_coords, tree_data, user_data)
+function trixi_t8_mapping(cmesh, gtreeid, ref_coords, num_coords, out_coords, tree_data, user_data)
     ltreeid = t8_cmesh_get_local_id(cmesh, gtreeid)
     eclass = t8_cmesh_get_tree_class(cmesh, ltreeid)
     T8code.t8_geom_compute_linear_geometry(eclass, tree_data,
@@ -49,8 +49,8 @@ function f(cmesh, gtreeid, ref_coords, num_coords, out_coords, tree_data, user_d
     return nothing
 end
 
-function f_c()
-    @cfunction($f, Cvoid,
+function trixi_t8_mapping_c()
+    @cfunction($trixi_t8_mapping, Cvoid,
                (t8_cmesh_t, t8_gloidx_t, Ptr{Cdouble}, Csize_t,
                 Ptr{Cdouble}, Ptr{Cvoid}, Ptr{Cvoid}))
 end
@@ -59,7 +59,7 @@ trees_per_dimension = (2, 2, 2)
 
 eclass = T8_ECLASS_HEX
 mesh = T8codeMesh(trees_per_dimension, eclass;
-                  mapping = f_c(),
+                  mapping = trixi_t8_mapping_c(),
                   # Plan is to use either
                   # coordinates_max = coordinates_max, coordinates_min = coordinates_min,
                   # or at least
