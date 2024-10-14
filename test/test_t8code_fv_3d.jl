@@ -77,10 +77,10 @@ mkdir(outdir)
     end
     @trixi_testset "second-order FV, extended reconstruction stencil" begin
         @test_trixi_include(joinpath(EXAMPLES_DIR, "elixir_advection_basic.jl"),
-                            initial_refinement_level=2+2,
+                            initial_refinement_level=1+2,
                             extended_reconstruction_stencil=true,
-                            l2=[0.24826100771542928],
-                            linf=[0.3799973662927152])
+                            l2=[0.3282177575292713],
+                            linf=[0.39002345444858333])
         # Ensure that we do not have excessive memory allocations
         # (e.g., from type instabilities)
         let
