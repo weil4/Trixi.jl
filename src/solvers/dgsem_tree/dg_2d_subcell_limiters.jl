@@ -1691,7 +1691,7 @@
         # Getting the Limiter by setting up an linear program and then solving it
         # The linear program is of the form:
         # max_{x_{i}} \sum_{i} x_{i} with constraints ax<=b, 0<=x<=U
-        if limiter.lin_chan
+        if limiter.lin_chan_limiter
             (; limiting_factor_x, limiting_factor_y) = limiter.cache.subcell_limiter_coefficients
             @unpack weights=dg.basis
             M_1d=Diagonal(weights) #Mass matrix in 1d
@@ -2013,127 +2013,6 @@
         end
         return x
     end
-    
-    
-    """
-    @parameter entropy_variable is the gradient in u-direction for the associated convex mathematical entropy eta(u)
-    @parameter entropy_flux is the flux satisfying the identity gradient_u(F(u))^T=(entropy_variable)^T*gradient_u(f(u))
-    @parameter flux is the flux given by the problem equation
-    @parameter f_hat_FV is a Vector of FV flux values with dimension N
-    @parameter f_hat_DG is a Vector of DG flux values with dimension N
-    @parameter u is a vector of numerical solution u
-    @parameter direction is a parameter for x or y direction calculation of the limiter
-    @parameter begin_interval is the smallest node value of the mesh
-    @parameter end_interval is the highest node value of the mesh
-    @parameter convex_limiter is a limiter that preserves the convex constraints
-    @parameter tolerance to avoid floating-point errors in the greedy algorithm
-    """
-    """
-    @inline function two_dimensional_subcell_limiter(entropy_variable, entropy_flux, flux, f_hat_FV, f_hat_DG, 
-                                                    dg::DGSEM, u, direction, begin_interval, end_interval, convex_limiter,tolerance)
-        #general calculations for bpth directions:
-        flux_direction=flux[direction,:]
-        @unpack weights=dg.basis
-        M_1d=Diagonal(weights) #Mass matrix in 1d
-        B_1d=zeros(2,lengths(weights)) #Boundary integration in 1d
-        B_1d[1,1]=-1
-        B_1d[2,lengths(weights)]=1
-        f_hat_FV_x=f_hat_FV[1,:] #f_hat_FV values in x-direction
-        f_hat_FV_y=f_hat_FV[2,:] #f_hat_FV values in y-direction
-        f_hat_DG_direction=f_hat_DG[direction,:] #f_hat_DG values in direction
-        entropy_flux_direction_x=entropy_flux[1,:]
-        entropy_flux_direction_y=entropy_flux[2,:]
-        if length(entropy_variable)<=1
-            error("entropy variable has length smaller than 1")
-        end
-        a=zeros(length(entropy_variable),length(entropy_variable))
-        for j in 1:length(entropy_variable)
-            for i in 1:length(entropy_variable)-1
-                a[j,i]=transpose(entropy_variable[i,j]-entropy_variable[i+1,j])(f_hat_DG_direction[i+1,j]-f_hat_FV_direction[i+1,j])
-            end
-        end
-        lower=-1/2*ones(length(entropy_variable))
-        middle=zeros(length(entropy_variable))
-        middle[1]=-1/2
-        upper=1/2*ones(length(entropy_variable))
-        Q_1d_L=Tridiagonal(lower,middle,upper)
-        D=zeros(length(entropy_variable),length(entropy_variable))
-        for i in 1:length(u)
-            for j in 1:length(u)
-                D[i,j]= u[i]-u[j]
-            end
-        end
-        U=convex_limiter
-    
-        #specific calculations in x-direction:
-        B_x=tensor(M_1d,B_1d) #Boundary integration for 2d in x
-        entropy_potential_x=entropy_potential(entropy_flux, flux, u, entropy_variable)[direction][:] #entropy potential for x-direction
-        Q_x_L=tensor(I,Q_1d_L) 
-        matrix_x_Q_F = hadamard((Q_x_L-transpose(Q_x_L)),entropy_flux_direction_x)
-        Q_difference_x=Q_x_L-transpose(Q_x_L)
-        n_x=zeros(length(entropy_variable),length(entropy_variable),2)
-        for i in 1:length(entropy_variable)
-            for j in 1:length(entropy_variable)
-                for k in 1:2
-                    if k==1
-                        n_x[i][j][k]=Q_difference_x[i][j]
-                    end
-                    if k==2
-                        n_x[i][j][k]=0
-                    end
-                end
-            end
-        end
-        Lambda_x = zeros(length(entropy_variable),length(entropy_variable))
-        for i in 1:length(entropy_variable)
-            for j in 1:length(entropy_variable)
-                Lambda_x[i,j]=1/2*norm(n_x[i][j][:],2)*max_abs_speed_naive(u[i], u[j], 0 , n_x[i][j][:]/norm(n_x[i][j][:],2))
-            end
-        end
-        matrix_Lambda_x_D = hadamard(Lambda_x,D)
-    
-        #specific calculations in y-direction:
-        B_y=tensor(B_1d,M_1d) #Boundary integration for 2d in y
-        Q_y_L=tensor(Q_1d_L,I) 
-        Q_difference_y=Q_y_L-transpose(Q_y_L)
-        n_y=zeros(length(entropy_variable),length(entropy_variable),2)
-        for i in 1:length(entropy_variable)
-            for j in 1:length(entropy_variable)
-                for k in 1:2
-                    if k==2
-                        n_x[i][j][k]=Q_difference_y[i][j]
-                    end
-                    if k==1
-                        n_x[i][j][k]=0
-                    end
-                end
-            end
-        end
-        Lambda_y=zeros(length(entropy_variable),length(entropy_variable))
-        for i in 1:length(entropy_variable)
-            for j in 1:length(entropy_variable)
-                Lambda_y[i,j]=1/2*norm(n_y[i][j][:],2)*max_abs_speed_naive(u[i], u[j], 0 , n_y[i][j][:]/norm(n_y[i][j][:],2))
-            end
-        end
-        matrix_Lambda_y_D = hadamard(Lambda_y,D)
-        matrix_y_Q_F =  hadamard((Q_y_L-transpose(Q_y_L)),entropy_flux_direction_y)
-        Delta_y_Vol_f_hat_DG_direction=-(matrix_x_Q_F*ones(1,length(matrix_x_Q_F)+matrix_y_Q_F*ones(1,length(matrix_y_Q_F)))+ 
-                                        matrix_Lambda_y_D*ones(1,length(matrix_Lambda_y_D)))
-        Delta_x_Vol_f_hat_DG_direction=-(matrix_x_Q_F*ones(1,length(matrix_x_Q_F)+matrix_y_Q_F*ones(1,length(matrix_y_Q_F)))+ 
-                                        matrix_Lambda_x_D*ones(1,length(matrix_Lambda_x_D)))
-        d_x_L=transpose(entropy_variable)*Delta_x_Vol_f_hat_DG_direction*f_hat_FV_x
-        d_y_L=transpose(entropy_variable)*Delta_y_Vol_f_hat_DG_direction*f_hat_FV_y
-        b_x=transpose(ones(1,length(B_x[direction,:])))*B_x*entropy_potential_x-ones(1,length(d_x_L))
-        b_y=transpose(ones(1,length(B_y[direction,:])))*B_y*entropy_potential_y-ones(1,length(d_y_L))
-    end
-    
-    @inline function P_vol_1d(entropy_flux, flux, u, begin_interval, end_interval)
-        return entropy_potential(entropy_flux, flux,u,end_interval)-entropy_potential(entropy_flux, flux,u,begin_interval)
-    end
-    
-    @inline function entropy_potential(entropy_flux, flux, u, entropy_variable) #entropy_pot is psi
-        return transpose(entropy_variable)*flux(u(entropy_variable))-entropy_flux(u(entropy_variable))
-    end"""
     
     end # @muladd
     

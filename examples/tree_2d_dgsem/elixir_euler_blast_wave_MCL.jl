@@ -46,6 +46,7 @@ limiter_mcl = SubcellLimiterMCL(equations, basis;
                                 positivity_limiter_density = true,
                                 positivity_limiter_pressure = true,
                                 positivity_limiter_pressure_exact = false,
+                                lin_chan_limiter = false,
                                 entropy_limiter_semidiscrete = true,
                                 smoothness_indicator = true,
                                 Plotting = false)

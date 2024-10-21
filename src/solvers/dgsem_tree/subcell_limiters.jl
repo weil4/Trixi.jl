@@ -280,6 +280,7 @@ end
                       positivity_limiter_pressure_exact = true,
                       positivity_limiter_density = false,
                       positivity_limiter_correction_factor = 0.0,
+                      lin_chan_limiter = false,
                       entropy_limiter_semidiscrete = false,
                       smoothness_indicator = false,
                       threshold_smoothness_indicator = 0.1,
@@ -326,6 +327,7 @@ struct SubcellLimiterMCL{RealT <: Real, Cache, Indicator} <: AbstractSubcellLimi
     positivity_limiter_pressure_exact::Bool # Only for positivity_limiter_pressure=true: Use the sharp calculation of factor
     positivity_limiter_density::Bool        # Impose positivity for cons(1)
     positivity_limiter_correction_factor::RealT  # Correction Factor for positivity_limiter_density in [0,1)
+    lin_chan_limiter::Bool                  # Lin Chan entropy Limiter
     entropy_limiter_semidiscrete::Bool      # synchronized semidiscrete entropy fix
     smoothness_indicator::Bool              # activates smoothness indicator: IndicatorHennemannGassner
     threshold_smoothness_indicator::RealT   # threshold for smoothness indicator
@@ -343,6 +345,7 @@ function SubcellLimiterMCL(equations::AbstractEquations, basis;
                            positivity_limiter_pressure_exact = true,
                            positivity_limiter_density = false,
                            positivity_limiter_correction_factor = 0.0,
+                           lin_chan_limiter = false,
                            entropy_limiter_semidiscrete = false,
                            smoothness_indicator = false,
                            threshold_smoothness_indicator = 0.1,
@@ -367,6 +370,7 @@ function SubcellLimiterMCL(equations::AbstractEquations, basis;
                                            positivity_limiter_pressure_exact,
                                            positivity_limiter_density,
                                            positivity_limiter_correction_factor,
+                                           lin_chan_limiter,
                                            entropy_limiter_semidiscrete,
                                            smoothness_indicator,
                                            threshold_smoothness_indicator, IndicatorHG,
