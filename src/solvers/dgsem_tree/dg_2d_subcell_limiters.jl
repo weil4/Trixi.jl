@@ -1692,151 +1692,199 @@ end
     # Getting the Limiter by setting up an linear program and then solving it
     # The linear program is of the form:
     # max_{x_{i}} \sum_{i} x_{i} with constraints ax<=b, 0<=x<=U
-    # if limiter.lin_chan_limiter
-    #     #(; limiting_factor_x, limiting_factor_y) = limiter.cache.subcell_limiter_coefficients
-    #     @unpack weights=dg.basis
-    #     #@unpack flux_temp_threaded, flux_nonconservative_temp_threaded = cache
-    #     volume_contribution = zeros(length(weights),length(weights)) #volume contribution
-    #     volume_flux = flux_ranocha #dependent on specific equation
-    #     surface_flux = flux_lax_friedrichs #dependent on specific equation
-    #     volume_flux_dg = volume_flux
-    #     volume_flux_fv = surface_flux
-    #     volume_integral= VolumeIntegralFluxDifferencing(volume_flux)
-    #     M_1d=Diagonal(weights) #Mass matrix in 1d
-    #     B_1d=zeros(2,length(weights)) #Boundary integration in 1d
-    #     B_1d[1,1]=-1
-    #     B_1d[2,length(weights)]=1
-    #     #B_x=tensor(M_1d,B_1d) #Boundary integration for 2d in x #to change by sum
-    #     #B_y=tensor(B_1d,M_1d) #Boundary integration for 2d in y #to change by sum
-    #     # high-order DG fluxes
-    #     #@unpack fhat1_high_L_threaded, fhat1_high_R_threaded, fhat2_high_L_threaded, fhat2_high_R_threaded = cache
-    #     @unpack fhat1_L_threaded, fhat1_R_threaded, fhat2_L_threaded, fhat2_R_threaded = cache
-    #     fhat1_high_L = fhat1_L_threaded[Threads.threadid()]
-    #     fhat1_high_R = fhat1_R_threaded[Threads.threadid()]
-    #     fhat2_high_L = fhat2_L_threaded[Threads.threadid()]
-    #     fhat2_high_R = fhat2_R_threaded[Threads.threadid()]
-    #     calcflux_fhat!(fhat1_high_L, fhat1_high_R, fhat2_high_L, fhat2_high_R, u, mesh, #f_values in f_hati_high_L
-    #                nonconservative_terms, equations, volume_flux_dg, dg, element,
-    #                cache)
+    if limiter.lin_chan_limiter
+        #(; limiting_factor_x, limiting_factor_y) = limiter.cache.subcell_limiter_coefficients
+        @unpack weights=dg.basis
+        #@unpack flux_temp_threaded, flux_nonconservative_temp_threaded = cache
+        # volume_contribution = zeros(length(weights),length(weights)) #volume contribution
+        # volume_flux = flux_ranocha #dependent on specific equation
+        # surface_flux = flux_lax_friedrichs #dependent on specific equation
+        # volume_flux_dg = volume_flux
+        # volume_flux_fv = surface_flux
+        # volume_integral= VolumeIntegralFluxDifferencing(volume_flux)
+        
+        #M_1d=Diagonal(weights) #Mass matrix in 1d
+        # B_1d=zeros(2,length(weights)) #Boundary integration in 1d
+        # B_1d[1,1]=-1
+        # B_1d[2,length(weights)]=1
+        #B_x=tensor(M_1d,B_1d) #Boundary integration for 2d in x #to change by sum
+        #B_y=tensor(B_1d,M_1d) #Boundary integration for 2d in y #to change by sum
+        # high-order DG fluxes
+        #@unpack fhat1_high_L_threaded, fhat1_high_R_threaded, fhat2_high_L_threaded, fhat2_high_R_threaded = cache
+        # @unpack fhat1_L_threaded, fhat1_R_threaded, fhat2_L_threaded, fhat2_R_threaded = cache
+        # fhat1_high_L = fhat1_L_threaded[Threads.threadid()]
+        # fhat1_high_R = fhat1_R_threaded[Threads.threadid()]
+        # fhat2_high_L = fhat2_L_threaded[Threads.threadid()]
+        # fhat2_high_R = fhat2_R_threaded[Threads.threadid()]
+        # calcflux_fhat!(fhat1_high_L, fhat1_high_R, fhat2_high_L, fhat2_high_R, u, mesh, #f_values in f_hati_high_L
+        #            nonconservative_terms, equations, volume_flux_dg, dg, element,
+        #            cache)
 
-    #     # low-order FV fluxes
-    #     @unpack fstar1_L_threaded, fstar1_R_threaded, fstar2_L_threaded, fstar2_R_threaded = cache
-    #     fstar1_low_L = fstar1_L_threaded[Threads.threadid()]
-    #     fstar2_low_L = fstar2_L_threaded[Threads.threadid()]
-    #     fstar1_low_R = fstar1_R_threaded[Threads.threadid()]
-    #     fstar2_low_R = fstar2_R_threaded[Threads.threadid()]
-    #     calcflux_fv!(fstar1_low_L, fstar1_low_R, fstar2_low_L, fstar2_low_R, u, mesh, #f values in f_star_low_i_L
-    #              nonconservative_terms, equations, volume_flux_fv, dg, element,
-    #              cache)
+        # # low-order FV fluxes
+        # @unpack fstar1_L_threaded, fstar1_R_threaded, fstar2_L_threaded, fstar2_R_threaded = cache
+        # fstar1_low_L = fstar1_L_threaded[Threads.threadid()]
+        # fstar2_low_L = fstar2_L_threaded[Threads.threadid()]
+        # fstar1_low_R = fstar1_R_threaded[Threads.threadid()]
+        # fstar2_low_R = fstar2_R_threaded[Threads.threadid()]
+        # calcflux_fv!(fstar1_low_L, fstar1_low_R, fstar2_low_L, fstar2_low_R, u, mesh, #f values in f_star_low_i_L
+        #          nonconservative_terms, equations, volume_flux_fv, dg, element,
+        #          cache)
 
-    #     psi_x = zeros(length(weights),length(weights)) #entropy potential in x-direction
-    #     #v = MVector{4, Float64} #entropy variable 
-    #     v = zeros(length(weights),length(weights),4)
-    #     for j in eachnode(dg), i in 1:nnodes(dg) #x-direction
-    #         u_local = get_node_vars(u, equations, dg, i, j, element)
-    #         v_local = cons2entropy(u_local, equations)
-    #         # Using mathematic entropy
-    #         v[i,j,:] = cons2entropy(u_local, equations)
-    #         q_local = u_local[2] / u_local[1] * entropy(u_local, equations)
-    #         f_local = flux(u_local, 1, equations)
-    #         psi_x[i,j] = dot(v_local, f_local) - q_local
-    #     end
-    #     psi_y = zeros(length(weights),length(weights)) #entropy potential in y-direction
-    #     for j in eachnode(dg), i in 1:nnodes(dg) #y-direction
-    #         u_local = get_node_vars(u, equations, dg, i, j, element)
-    #         v_local = cons2entropy(u_local, equations)
-    #         # Using mathematic entropy
-    #         q_local = u_local[3] / u_local[1] * entropy(u_local, equations)
-    #         f_local = flux(u_local, 2, equations)
-    #         psi_y[i,j] = dot(v_local, f_local) - q_local
-    #     end
-    #     #subcell_limiting_kernel(volume_contribution, u, element,mesh,
-    #      #                       nonconservative_terms, equations,
-    #       #                      volume_integral, limiter,
-    #        #                     dg, cache)
-    #     d_x = dot(transpose(v), volume_contribution)
-    #     #a_vector from ax<=b:
-    #     a_matrix_x = zeros(length(weights)+1,length(weights)+1)
-    #     for i in 1:eachnode(dg), j in 1:(length(weights)+1)
-    #         a_matrix[i,j] = dot(transpose(v[i,j] - v[i+1,j]),fhat1_high_L[i+1,j]-fstar1_low_L[i+1,j])
-    #     end
-    #     a_vector_x = zeros(length(weights)*(length(weights)+1))
-    #     i=1
-    #     j=1
-    #     k=1
-    #     while k <= length(weigths)
-    #         while j <= (length(weights)+1)
-    #             a_vector_x[i]=a_matrix_x[k,j]
-    #             i=i+1
-    #             j=j+1
-    #         end
-    #         k=k+1
-    #         j=1
-    #     end
-    #     #constraint b from ax<=b:
-    #     sum = 0
-    #     #b = dot(dot(transpose(ones(length(weights))),B_x),psi_x)-dot(ones(length(weights)),d_x)
-    #     b = sum-dot(ones(length(weights)),d_x)
-    #     #boundary given by convex limiter (at the moment it`s` set trivially to 1):
-    #     U = 1 
-    #     #tolerance for calculating during greedy algorithm (floating point precision):
-    #     epsilon = 10^(-14) 
-    #     #calculating limiting factors given by a linear program:
-    #     limiting_factor_x = greedy_algorithm_for_knapsack(a_vector_x,b,U,epsilon)
-    #     #change limiting_factor_x vektor into matrixnotation:
-    #     limiting_factor_x_matrix = zeros(length(weights),length(weights)+1)
-    #     for i in 1:length(weights)
-    #         for j in 1:(length(weights)+1)
-    #         limiting_factor_x_matrix[i,j]=limiting_factor_x[i*j]
-    #         end
-    #     end
-    #     #calculate the antidiffusive flux as combination of high and low order:
-    #     for v in 2:nvariables(equations)
-    #         for i in 1:eachnode(dg),j in 1:eachnode(dg)
-    #         antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
-    #                                                   + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
-    #         end
-    #     end
-    #     #analogues for y-direction:
-    #     #a_vector from ax<=b:
-    #     a_matrix_y = zeros(length(weights)+1,length(weights)+1)
-    #     for i in 1:eachnode(dg), j in 1:(length(weights)+1)
-    #         a_matrix_y[i,j] = dot(transpose(v[i,j] - v[i+1,j]),fhat2_high_L[i+1,j]-fstar2_low_L[i+1,j])
-    #     end
-    #     a_vector_y = zeros(length(weights)*(length(weights)+1))
-    #     i=1
-    #     j=1
-    #     k=1
-    #     while k<=length(weigths)
-    #         while j <= (length(weights)+1)
-    #             a_vector_y[i]=a_matrix_y[k,j]
-    #             i=i+1
-    #             j=j+1
-    #         end
-    #         k=k+1
-    #         j=1
-    #     end
-    #     d_y = dot(transpose(v), volume_contribution)
-    #     b = dot(dot(transpose(ones(length(weights))),B_y),psi_y)-dot(ones(length(weights)),d_y)
-    #     U = 1
-    #     epsilon = 10^(-14)
-    #     limiting_factor_y = greedy_algorithm_for_knapsack(a_vector_y,b,U,epsilon)
-    #     #change limiting_factor_y vektor into matrixnotation:
-    #     limiting_factor_y_matrix = zeros(length(weights),length(weights)+1)
-    #     for i in 1:length(weights)
-    #         for j in 1:(length(weights)+1)
-    #         limiting_factor_y_matrix[i,j]=limiting_factor_y[i*j]
-    #         end
-    #     end
-    #     #calculate the antidiffusive flux as combination of high and low order:
-    #     for v in 2:nvariables(equations)
-    #         for i in 1:eachnode(dg),j in 1:eachnode(dg)
-    #         antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j]* fhat2_high_L[v,i,j,element]
-    #                                                   + (1-limiting_factor_y_matrix[i,j])*fstar2_low_L[v,i,j,element]
-    #         end
-    #     end
+        psi_x = zeros(length(weights),length(weights)) #entropy potential in x-direction
+        #v = MVector{4, Float64} #entropy variable 
+        v = zeros(length(weights),length(weights),4)
+        for j in eachnode(dg), i in 1:nnodes(dg) #x-direction
+            u_local = get_node_vars(u, equations, dg, i, j, element)
+            v_local = cons2entropy(u_local, equations)
+            # Using mathematic entropy
+            v[i,j,:] = cons2entropy(u_local, equations)
+            q_local = u_local[2] / u_local[1] * entropy(u_local, equations)
+            f_local = flux(u_local, 1, equations)
+            psi_x[i,j] = dot(v_local, f_local) - q_local
+        end
+        psi_y = zeros(length(weights),length(weights)) #entropy potential in y-direction
+        for j in eachnode(dg), i in 1:nnodes(dg) #y-direction
+            u_local = get_node_vars(u, equations, dg, i, j, element)
+            v_local = cons2entropy(u_local, equations)
+            # Using mathematic entropy
+            q_local = u_local[3] / u_local[1] * entropy(u_local, equations)
+            f_local = flux(u_local, 2, equations)
+            psi_y[i,j] = dot(v_local, f_local) - q_local
+        end
+        #subcell_limiting_kernel(volume_contribution, u, element,mesh,
+         #                       nonconservative_terms, equations,
+          #                      volume_integral, limiter,
+           #                     dg, cache)
+        d_x = dot(v, volume_contribution)
+        #a_vector from ax<=b:
+        a_matrix_x = zeros(length(weights), length(weights) + 1)
+        b = 0.0
+        for j in eachnode(dg), i in 2:nnodes(dg)
+            antidiffusive_flux_local = get_node_vars(antidiffusive_flux1_L, equations,
+                                                     dg,
+                                                     i, j, element)
+            u_local = get_node_vars(u, equations, dg, i, j, element)
+            u_local_m1 = get_node_vars(u, equations, dg, i - 1, j, element)
 
-    # end #end of Lin Chan limiter implementation
+            # Using mathematic entropy
+            v_local = cons2entropy(u_local, equations)
+            v_local_m1 = cons2entropy(u_local_m1, equations)
+
+            # Compute a value
+            a_matrix_x[i - 1, j] = dot(v_local_m1 - v_local, antidiffusive_flux_local) 
+
+            # Compute b values
+            b += dot(v_local_m1 - v_local, fstar1[:, i, j])
+        end
+        # Compute boundary contribution for b
+        for j in eachnode(dg)
+            i = 1
+            u_local = get_node_vars(u, equations, dg, i, j, element)
+
+            # Using mathematic entropy
+            v_local = cons2entropy(u_local, equations)
+            q_local = u_local[2] / u_local[1] * entropy(u_local, equations)
+
+            f_local = flux(u_local, 1, equations)
+
+            psi_local = dot(v_local, f_local) - q_local
+            
+            b -= psi_local
+
+            i = nnodes(dg)
+            u_local = get_node_vars(u, equations, dg, i, j, element)
+
+            # Using mathematic entropy
+            v_local = cons2entropy(u_local, equations)
+            q_local = u_local[2] / u_local[1] * entropy(u_local, equations)
+
+            f_local = flux(u_local, 1, equations)
+
+            psi_local = dot(v_local, f_local) - q_local
+            
+            b += psi_local
+        end
+
+        # for i in eachnode(dg), j in 1:(length(weights)+1)
+        #     a_matrix[i,j] = dot(v[i,j] - v[i+1,j], fhat1_high_L[i+1,j]-fstar1_low_L[i+1,j])
+        # end
+        a_vector_x = zeros(length(weights)*(length(weights)+1))
+        i=1
+        j=1
+        k=1
+        while k <= length(weigths)
+            while j <= (length(weights)+1)
+                a_vector_x[i]=a_matrix_x[k,j]
+                i=i+1
+                j=j+1
+            end
+            k=k+1
+            j=1
+        end
+        #constraint b from ax<=b:
+        sum = 0
+        #b = dot(dot(transpose(ones(length(weights))),B_x),psi_x)-dot(ones(length(weights)),d_x)
+        b = sum-dot(ones(length(weights)),d_x)
+        #boundary given by convex limiter (at the moment it`s` set trivially to 1):
+        U = 1 
+        #tolerance for calculating during greedy algorithm (floating point precision):
+        epsilon = 10^(-14) 
+        #calculating limiting factors given by a linear program:
+        limiting_factor_x = greedy_algorithm_for_knapsack(a_vector_x,b,U,epsilon)
+        #change limiting_factor_x vektor into matrixnotation:
+        limiting_factor_x_matrix = zeros(length(weights),length(weights)+1)
+        for i in 1:length(weights)
+            for j in 1:(length(weights)+1)
+            limiting_factor_x_matrix[i,j]=limiting_factor_x[i*j]
+            end
+        end
+        #calculate the antidiffusive flux as combination of high and low order:
+        for v in 2:nvariables(equations)
+            for i in eachnode(dg),j in eachnode(dg)
+            antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
+                                                      + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
+            end
+        end
+        #analogues for y-direction:
+        #a_vector from ax<=b:
+        a_matrix_y = zeros(length(weights)+1,length(weights)+1)
+        for i in eachnode(dg), j in 1:(length(weights)+1)
+            a_matrix_y[i,j] = dot(v[i,j] - v[i+1,j], fhat2_high_L[i+1,j]-fstar2_low_L[i+1,j])
+        end
+        a_vector_y = zeros(length(weights)*(length(weights)+1))
+        i=1
+        j=1
+        k=1
+        while k<=length(weigths)
+            while j <= (length(weights)+1)
+                a_vector_y[i]=a_matrix_y[k,j]
+                i=i+1
+                j=j+1
+            end
+            k=k+1
+            j=1
+        end
+        d_y = dot(v, volume_contribution)
+        b = dot(dot(ones(length(weights)),B_y),psi_y)-dot(ones(length(weights)),d_y)
+        U = 1
+        epsilon = 10^(-14)
+        limiting_factor_y = greedy_algorithm_for_knapsack(a_vector_y,b,U,epsilon)
+        #change limiting_factor_y vektor into matrixnotation:
+        limiting_factor_y_matrix = zeros(length(weights),length(weights)+1)
+        for i in 1:length(weights)
+            for j in 1:(length(weights)+1)
+            limiting_factor_y_matrix[i,j]=limiting_factor_y[i*j]
+            end
+        end
+        #calculate the antidiffusive flux as combination of high and low order:
+        for v in 2:nvariables(equations)
+            for i in eachnode(dg),j in eachnode(dg)
+            antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j]* fhat2_high_L[v,i,j,element]
+                                                      + (1-limiting_factor_y_matrix[i,j])*fstar2_low_L[v,i,j,element]
+            end
+        end
+
+    end #end of Lin Chan limiter implementation
 
     # Limit entropy
     # TODO: This is a very inefficient function. We compute the entropy four times at each node.
