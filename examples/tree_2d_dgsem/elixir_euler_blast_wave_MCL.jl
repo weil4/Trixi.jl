@@ -39,16 +39,16 @@ surface_flux = flux_lax_friedrichs
 volume_flux = flux_ranocha
 basis = LobattoLegendreBasis(3)
 limiter_mcl = SubcellLimiterMCL(equations, basis;
-                                density_limiter = true,
-                                density_coefficient_for_all = true,
+                                density_limiter = false, #true
+                                density_coefficient_for_all = false, #true
                                 sequential_limiter = false,
-                                conservative_limiter = true,
-                                positivity_limiter_density = true,
-                                positivity_limiter_pressure = true,
+                                conservative_limiter = false, #true
+                                positivity_limiter_density = false, #true
+                                positivity_limiter_pressure = false, #true
                                 positivity_limiter_pressure_exact = false,
-                                lin_chan_limiter = false,
-                                entropy_limiter_semidiscrete = true,
-                                smoothness_indicator = true,
+                                lin_chan_limiter = true, #false
+                                entropy_limiter_semidiscrete = false, #true
+                                smoothness_indicator = false, #true
                                 Plotting = false)
 volume_integral = VolumeIntegralSubcellLimiting(limiter_mcl;
                                                 volume_flux_dg = volume_flux,
@@ -72,7 +72,9 @@ ode = semidiscretize(semi, tspan)
 summary_callback = SummaryCallback()
 
 analysis_interval = 100
-analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
+#analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
+analysis_callback = AnalysisCallback(semi, interval = analysis_interval, save_analysis=true, 
+                                     output_directory="out", analysis_filename="analysis.dat", extra_analysis_integrals = (entropy, ))
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
