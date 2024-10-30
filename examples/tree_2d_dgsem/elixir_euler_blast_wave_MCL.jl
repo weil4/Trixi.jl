@@ -26,10 +26,10 @@ function initial_condition_blast_wave(x, t, equations::CompressibleEulerEquation
     sin_phi, cos_phi = sincos(phi)
 
     # Calculate primitive variables
-    rho = r > 0.5 ? 1.0 : 1.1691
-    v1 = r > 0.5 ? 0.0 : 0.1882 * cos_phi
-    v2 = r > 0.5 ? 0.0 : 0.1882 * sin_phi
-    p = r > 0.5 ? 1.0E-3 : 1.245
+    rho = r > 0.5 ? 1.0 : 1.3416
+    v1 = r > 0.5 ? 0.0 : 0.3615 * cos_phi
+    v2 = r > 0.5 ? 0.0 : 0.3615 * sin_phi
+    p = r > 0.5 ? 1.0 : 1.5133
 
     return prim2cons(SVector(rho, v1, v2, p), equations)
 end
