@@ -1695,11 +1695,6 @@ end
     if limiter.lin_chan_limiter
         #(; limiting_factor_x, limiting_factor_y) = limiter.cache.subcell_limiter_coefficients
         @unpack weights=dg.basis
-        (; fstar1_L_threaded, fstar1_R_threaded, fstar2_L_threaded, fstar2_R_threaded) = cache
-        fstar1_L = fstar1_L_threaded[Threads.threadid()]
-        fstar2_L = fstar2_L_threaded[Threads.threadid()]
-        fstar1_R = fstar1_R_threaded[Threads.threadid()]
-        fstar2_R = fstar2_R_threaded[Threads.threadid()]
         #@unpack flux_temp_threaded, flux_nonconservative_temp_threaded = cache
         # volume_contribution = zeros(length(weights),length(weights)) #volume contribution
         # volume_flux = flux_ranocha #dependent on specific equation
@@ -1782,8 +1777,7 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            #b_x += dot(v_local_m1 - v_local, fstar1[:, i, j])
-            b_x += dot(v_local_m1 - v_local,(fstar1_L[:, i, j] - fstar1_R[:, i-1, j]))
+            b_x += dot(v_local_m1 - v_local, fstar1[:, i, j])
         end
         # Compute boundary contribution for b
         for j in eachnode(dg)
@@ -1859,12 +1853,11 @@ end
             #antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
             #                                          + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
             antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* antidiffusive_flux1_L[v, i, j, element]
-                                                      + fstar1_L[v, i, j]
             end
         end
         #analogues for y-direction:
         #a_vector from ax<=b:
-        a_matrix_y = zeros(length(weights)+1,length(weights)+1)
+        a_matrix_y = zeros(length(weights),length(weights)+1)
         b_y = 0.0
         for j in eachnode(dg), i in 2:nnodes(dg)
             antidiffusive_flux_local = get_node_vars(antidiffusive_flux2_L, equations,
@@ -1884,8 +1877,7 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            #b_y -= dot(v_local_m1 - v_local, fstar2[:, i, j])
-            b_y += dot(v_local_m1 - v_local,(fstar2_L[:, i , j] - fstar2_R[:, i-1, j]))
+            b_y -= dot(v_local_m1 - v_local, fstar2[:, i, j])
         end
 
         # Compute boundary contribution for b
@@ -1900,7 +1892,7 @@ end
             f_local = flux(u_local, 2, equations)
 
             psi_local = dot(v_local, f_local) - q_local
-            psi_local *= weights[j]
+            psi_local *= weights[i]
             b_y -= psi_local
 
             j = nnodes(dg)
@@ -1913,7 +1905,7 @@ end
             f_local = flux(u_local, 2, equations)
 
             psi_local = dot(v_local, f_local) - q_local
-            psi_local *= weights[j]
+            psi_local *= weights[i]
             
             b_y += psi_local
         end
@@ -1941,13 +1933,6 @@ end
         limiting_factor_y = greedy_algorithm_for_knapsack(a_vector_y,b_y,U,epsilon)
         #change limiting_factor_y vektor into matrixnotation:
         limiting_factor_y_matrix = zeros(length(weights),length(weights)+1)
-        for i in 1:length(weights)
-            for j in 1:(length(weights)+1)
-            limiting_factor_y_matrix[i,j]=limiting_factor_y[i*j]
-            end
-        end
-        #calculate the antidiffusive flux as combination of high and low order:
-        limiting_factor_y_matrix = zeros(length(weights),length(weights)+1)
         i=1
         k=1
         for j in 1:((length(weights)+1)*length(weights))
@@ -1958,12 +1943,12 @@ end
                 k=1
             end
         end
+        #calculate the antidiffusive flux as combination of high and low order:
         for v in 2:nvariables(equations)
             for i in eachnode(dg),j in eachnode(dg)
             #antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
             #                                          + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
             antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j]* antidiffusive_flux2_L[v, i, j, element]
-                                                      + fstar2_L[v, i, j]
             end
         end
     end #end of Lin Chan limiter implementation
