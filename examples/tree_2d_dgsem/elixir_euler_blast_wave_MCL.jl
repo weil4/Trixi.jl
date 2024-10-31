@@ -35,7 +35,7 @@ function initial_condition_blast_wave(x, t, equations::CompressibleEulerEquation
 end
 initial_condition = initial_condition_blast_wave
 
-surface_flux = flux_lax_friedrichs
+surface_flux = flux_ranocha # flux_lax_friedrichs
 volume_flux = flux_ranocha
 basis = LobattoLegendreBasis(3)
 limiter_mcl = SubcellLimiterMCL(equations, basis;
@@ -49,7 +49,7 @@ limiter_mcl = SubcellLimiterMCL(equations, basis;
                                 lin_chan_limiter = true, #false
                                 entropy_limiter_semidiscrete = false, #true
                                 smoothness_indicator = false, #true
-                                Plotting = false)
+                                Plotting = true)
 volume_integral = VolumeIntegralSubcellLimiting(limiter_mcl;
                                                 volume_flux_dg = volume_flux,
                                                 volume_flux_fv = surface_flux)
@@ -85,9 +85,12 @@ save_solution = SaveSolutionCallback(interval = 500,
 
 stepsize_callback = StepsizeCallback(cfl = 0.9)
 
+limiting_analysis_callback = LimitingAnalysisCallback(output_directory="out", interval=1)
+
 callbacks = CallbackSet(summary_callback,
                         analysis_callback, alive_callback,
                         save_solution,
+                        limiting_analysis_callback,
                         stepsize_callback)
 
 ###############################################################################

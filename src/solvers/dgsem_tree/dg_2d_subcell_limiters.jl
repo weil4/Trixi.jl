@@ -1848,18 +1848,26 @@ end
             end
         end
         #calculate the antidiffusive flux as combination of high and low order:
-        for v in 2:nvariables(equations)
-            for i in eachnode(dg),j in eachnode(dg)
-            #antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
-            #                                          + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
-            antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* antidiffusive_flux1_L[v, i, j, element]
+        for j in eachnode(dg), i in 2:nnodes(dg)
+            for v in 1:nvariables(equations)
+                antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* antidiffusive_flux1_L[v, i, j, element]
+            end
+            # Save limiting factor for plotting/statistics
+            if limiter.Plotting
+                (; alpha_entropy, alpha_mean_entropy) = limiter.cache.subcell_limiter_coefficients
+                alpha_entropy[i - 1, j, element] = min(alpha_entropy[i - 1, j, element],
+                                                       limiting_factor_x_matrix[i,j])
+                alpha_entropy[i, j, element] = min(alpha_entropy[i, j, element], limiting_factor_x_matrix[i,j])
+                alpha_mean_entropy[i - 1, j, element] += limiting_factor_x_matrix[i,j]
+                alpha_mean_entropy[i, j, element] += limiting_factor_x_matrix[i,j]
             end
         end
+        
         #analogues for y-direction:
         #a_vector from ax<=b:
         a_matrix_y = zeros(length(weights),length(weights)+1)
         b_y = 0.0
-        for j in eachnode(dg), i in 2:nnodes(dg)
+        for j in 2:nnodes(dg), i in eachnode(dg)
             antidiffusive_flux_local = get_node_vars(antidiffusive_flux2_L, equations,
                                                      dg,
                                                      i, j, element)
@@ -1944,11 +1952,32 @@ end
             end
         end
         #calculate the antidiffusive flux as combination of high and low order:
-        for v in 2:nvariables(equations)
-            for i in eachnode(dg),j in eachnode(dg)
-            #antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
-            #                                          + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
-            antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j]* antidiffusive_flux2_L[v, i, j, element]
+        for j in 2:nnodes(dg), i in eachnode(dg)
+            for v in 1:nvariables(equations)
+                antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j]* antidiffusive_flux2_L[v, i, j, element]
+            end
+            # Save limiting factor for plotting/statistics
+            if limiter.Plotting
+                (; alpha_entropy, alpha_mean_entropy) = limiter.cache.subcell_limiter_coefficients
+                alpha_entropy[i, j - 1, element] = min(alpha_entropy[i, j - 1, element],
+                                                        limiting_factor_y_matrix[i,j])
+                alpha_entropy[i, j, element] = min(alpha_entropy[i, j, element], limiting_factor_y_matrix[i,j])
+                alpha_mean_entropy[i, j - 1, element] += limiting_factor_y_matrix[i,j]
+                alpha_mean_entropy[i, j, element] += limiting_factor_y_matrix[i,j]
+            end
+        end
+        # Rescale saved limitier factors
+        if limiter.Plotting
+            (; alpha_mean_entropy) = limiter.cache.subcell_limiter_coefficients
+            # Interfaces contribute with 1.0
+            for i in eachnode(dg)
+                alpha_mean_entropy[i, 1, element] += 1.0
+                alpha_mean_entropy[i, nnodes(dg), element] += 1.0
+                alpha_mean_entropy[1, i, element] += 1.0
+                alpha_mean_entropy[nnodes(dg), i, element] += 1.0
+            end
+            for j in eachnode(dg), i in eachnode(dg)
+                alpha_mean_entropy[i, j, element] /= 4
             end
         end
     end #end of Lin Chan limiter implementation
