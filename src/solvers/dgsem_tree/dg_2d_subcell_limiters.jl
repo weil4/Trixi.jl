@@ -1233,7 +1233,7 @@ end
 
             #Limit all quantities with the same alpha
             if limiter.density_coefficient_for_all
-                for v in 1:nvariables(equations)
+                for v in 2:nvariables(equations)
                     antidiffusive_flux2_L[v, i, j, element] = coefficient *
                                                               antidiffusive_flux2_L[v,
                                                                                     i,
@@ -1848,30 +1848,28 @@ end
             end
         end
         #calculate the antidiffusive flux as combination of high and low order:
-        for v in 2:nvariables(equations)
-            for i in eachnode(dg),j in eachnode(dg)
-            #antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
-            #                                          + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
-            antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* antidiffusive_flux1_L[v, i, j, element]
+        for v in 1:nvariables(equations)
+            for i in 2:nnodes(dg),j in eachnode(dg)
+                antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i-1,j]* antidiffusive_flux1_L[v, i, j, element]
             end
         end
         #analogues for y-direction:
         #a_vector from ax<=b:
         a_matrix_y = zeros(length(weights),length(weights)+1)
         b_y = 0.0
-        for j in eachnode(dg), i in 2:nnodes(dg)
+        for j in 2:nnodes(dg), i in eachnode(dg)
             antidiffusive_flux_local = get_node_vars(antidiffusive_flux2_L, equations,
                                                      dg,
                                                      i, j, element)
             u_local = get_node_vars(u, equations, dg, i, j, element)
-            u_local_m1 = get_node_vars(u, equations, dg, i - 1, j, element)
+            u_local_m1 = get_node_vars(u, equations, dg, i, j -1 , element)
 
             # Using mathematic entropy
             v_local = cons2entropy(u_local, equations)
             v_local_m1 = cons2entropy(u_local_m1, equations)
 
             # Compute a value
-            a_matrix_y[i - 1, j] = dot(v_local_m1 - v_local, antidiffusive_flux_local) 
+            a_matrix_y[i, j -1 ] = dot(v_local_m1 - v_local, antidiffusive_flux_local) 
 
             # Compute b values
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
@@ -1944,11 +1942,9 @@ end
             end
         end
         #calculate the antidiffusive flux as combination of high and low order:
-        for v in 2:nvariables(equations)
-            for i in eachnode(dg),j in eachnode(dg)
-            #antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i,j]* fhat1_high_L[v,i,j,element]
-            #                                          + (1-limiting_factor_x_matrix[i,j])*fstar1_low_L[v,i,j,element]
-            antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j]* antidiffusive_flux2_L[v, i, j, element]
+        for v in 1:nvariables(equations)
+            for i in eachnode(dg),j in 2:nnodes(dg)
+                antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j-1]* antidiffusive_flux2_L[v, i, j, element]
             end
         end
     end #end of Lin Chan limiter implementation
