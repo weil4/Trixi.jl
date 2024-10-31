@@ -354,6 +354,9 @@ function SubcellLimiterMCL(equations::AbstractEquations, basis;
     if sequential_limiter && conservative_limiter
         error("Only one of the two can be selected: sequential_limiter/conservative_limiter")
     end
+    if lin_chan_limiter && entropy_limiter_semidiscrete
+        error("Only one of the two can be selected: sequential_limiter/conservative_limiter")
+    end
     cache = create_cache(SubcellLimiterMCL, equations, basis,
                          positivity_limiter_pressure)
     if smoothness_indicator
@@ -460,7 +463,7 @@ function get_node_variables!(node_variables, limiter::SubcellLimiterMCL,
         node_variables[:alpha_pressure] = alpha_pressure
     end
 
-    if limiter.entropy_limiter_semidiscrete
+    if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
         @unpack alpha_entropy = limiter.cache.subcell_limiter_coefficients
         node_variables[:alpha_entropy] = alpha_entropy
     end
@@ -476,7 +479,7 @@ function get_node_variables!(node_variables, limiter::SubcellLimiterMCL,
         node_variables[:alpha_mean_pressure] = alpha_mean_pressure
     end
 
-    if limiter.entropy_limiter_semidiscrete
+    if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
         @unpack alpha_mean_entropy = limiter.cache.subcell_limiter_coefficients
         node_variables[:alpha_mean_entropy] = alpha_mean_entropy
     end

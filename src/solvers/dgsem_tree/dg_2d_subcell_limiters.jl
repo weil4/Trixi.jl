@@ -1124,7 +1124,7 @@ end
                 alpha_mean_pressure[i, j, element] = zero(eltype(alpha_mean_pressure))
                 alpha_pressure[i, j, element] = one(eltype(alpha_pressure))
             end
-            if limiter.entropy_limiter_semidiscrete
+            if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
                 alpha_mean_entropy[i, j, element] = zero(eltype(alpha_mean_entropy))
                 alpha_entropy[i, j, element] = one(eltype(alpha_entropy))
             end
@@ -1694,7 +1694,7 @@ end
     # max_{x_{i}} \sum_{i} x_{i} with constraints ax<=b, 0<=x<=U
     if limiter.lin_chan_limiter
         #(; limiting_factor_x, limiting_factor_y) = limiter.cache.subcell_limiter_coefficients
-        @unpack weights=dg.basis
+        @unpack weights = dg.basis
         #@unpack flux_temp_threaded, flux_nonconservative_temp_threaded = cache
         # volume_contribution = zeros(length(weights),length(weights)) #volume contribution
         # volume_flux = flux_ranocha #dependent on specific equation
@@ -1702,7 +1702,7 @@ end
         # volume_flux_dg = volume_flux
         # volume_flux_fv = surface_flux
         # volume_integral= VolumeIntegralFluxDifferencing(volume_flux)
-        
+
         #M_1d=Diagonal(weights) #Mass matrix in 1d
         # B_1d=zeros(2,length(weights)) #Boundary integration in 1d
         # B_1d[1,1]=-1
@@ -1732,16 +1732,16 @@ end
 
         # psi_x = zeros(length(weights),length(weights)) #entropy potential in x-direction
         #v = MVector{4, Float64} #entropy variable 
-            # v = zeros(length(weights),length(weights),4)
-            # for j in eachnode(dg), i in 1:nnodes(dg) #x-direction
-            #     u_local = get_node_vars(u, equations, dg, i, j, element)
-            #     v_local = cons2entropy(u_local, equations)
-            #     # Using mathematic entropy
-            #     v[i,j,:] = cons2entropy(u_local, equations)
-            #     q_local = u_local[2] / u_local[1] * entropy(u_local, equations)
-            #     f_local = flux(u_local, 1, equations)
-            #     psi_x[i,j] = dot(v_local, f_local) - q_local
-            # end
+        # v = zeros(length(weights),length(weights),4)
+        # for j in eachnode(dg), i in 1:nnodes(dg) #x-direction
+        #     u_local = get_node_vars(u, equations, dg, i, j, element)
+        #     v_local = cons2entropy(u_local, equations)
+        #     # Using mathematic entropy
+        #     v[i,j,:] = cons2entropy(u_local, equations)
+        #     q_local = u_local[2] / u_local[1] * entropy(u_local, equations)
+        #     f_local = flux(u_local, 1, equations)
+        #     psi_x[i,j] = dot(v_local, f_local) - q_local
+        # end
         # psi_y = zeros(length(weights),length(weights)) #entropy potential in y-direction
         # for j in eachnode(dg), i in 1:nnodes(dg) #y-direction
         #     u_local = get_node_vars(u, equations, dg, i, j, element)
@@ -1752,9 +1752,9 @@ end
         #     psi_y[i,j] = dot(v_local, f_local) - q_local
         # end
         #subcell_limiting_kernel(volume_contribution, u, element,mesh,
-         #                       nonconservative_terms, equations,
-          #                      volume_integral, limiter,
-           #                     dg, cache)
+        #                       nonconservative_terms, equations,
+        #                      volume_integral, limiter,
+        #                     dg, cache)
         #d_x = dot(v, volume_contribution)
         #a_vector from ax<=b:
         a_matrix_x = zeros(length(weights), length(weights) + 1)
@@ -1771,7 +1771,7 @@ end
             v_local_m1 = cons2entropy(u_local_m1, equations)
 
             # Compute a value
-            a_matrix_x[i - 1, j] = dot(v_local_m1 - v_local, antidiffusive_flux_local) 
+            a_matrix_x[i - 1, j] = dot(v_local_m1 - v_local, antidiffusive_flux_local)
 
             # Compute b_x values
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
@@ -1805,81 +1805,85 @@ end
 
             psi_local = dot(v_local, f_local) - q_local
             psi_local *= weights[j]
-            
+
             b_x += psi_local
         end
 
         # for i in eachnode(dg), j in 1:(length(weights)+1)
         #     a_matrix[i,j] = dot(v[i,j] - v[i+1,j], fhat1_high_L[i+1,j]-fstar1_low_L[i+1,j])
         # end
-        a_vector_x = zeros(length(weights)*(length(weights)+1))
-        i=1
-        j=1
-        k=1
+        a_vector_x = zeros(length(weights) * (length(weights) + 1))
+        i = 1
+        j = 1
+        k = 1
         while k <= length(weights)
-            while j <= (length(weights)+1)
-                a_vector_x[i]=a_matrix_x[k,j]
-                i=i+1
-                j=j+1
+            while j <= (length(weights) + 1)
+                a_vector_x[i] = a_matrix_x[k, j]
+                i = i + 1
+                j = j + 1
             end
-            k=k+1
-            j=1
+            k = k + 1
+            j = 1
         end
         #constraint b from ax<=b:
         #sum = 0
         #b = dot(dot(transpose(ones(length(weights))),B_x),psi_x)-dot(ones(length(weights)),d_x)
         #b = sum-dot(ones(length(weights)),d_x)
         #boundary given by convex limiter (at the moment it`s` set trivially to 1):
-        U = ones(length(weights)*(length(weights)+1)) 
+        U = ones(length(weights) * (length(weights) + 1))
         #tolerance for calculating during greedy algorithm (floating point precision):
-        epsilon = 10^(-14) 
+        epsilon = 10^(-14)
         #calculating limiting factors given by a linear program:
-        limiting_factor_x = greedy_algorithm_for_knapsack(a_vector_x,b_x,U,epsilon)
+        limiting_factor_x = greedy_algorithm_for_knapsack(a_vector_x, b_x, U, epsilon)
         #change limiting_factor_x vektor into matrixnotation:
-        limiting_factor_x_matrix = zeros(length(weights),length(weights)+1)
-        i=1
-        k=1
-        for j in 1:((length(weights)+1)*length(weights))
-            limiting_factor_x_matrix[i,k]=limiting_factor_x[j]
-            k=k+1
-            if mod(j,length(weights)+1) == 0
-                i=i+1
-                k=1
+        limiting_factor_x_matrix = zeros(length(weights), length(weights) + 1)
+        i = 1
+        k = 1
+        for j in 1:((length(weights) + 1) * length(weights))
+            limiting_factor_x_matrix[i, k] = limiting_factor_x[j]
+            k = k + 1
+            if mod(j, length(weights) + 1) == 0
+                i = i + 1
+                k = 1
             end
         end
         #calculate the antidiffusive flux as combination of high and low order:
         for j in eachnode(dg), i in 2:nnodes(dg)
             for v in 1:nvariables(equations)
-                antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i-1,j]* antidiffusive_flux1_L[v, i, j, element]
+                antidiffusive_flux1_L[v, i, j, element] = limiting_factor_x_matrix[i - 1,
+                                                                                   j] *
+                                                          antidiffusive_flux1_L[v, i, j,
+                                                                                element]
             end
             # Save limiting factor for plotting/statistics
             if limiter.Plotting
                 (; alpha_entropy, alpha_mean_entropy) = limiter.cache.subcell_limiter_coefficients
                 alpha_entropy[i - 1, j, element] = min(alpha_entropy[i - 1, j, element],
-                                                       limiting_factor_x_matrix[i,j])
-                alpha_entropy[i, j, element] = min(alpha_entropy[i, j, element], limiting_factor_x_matrix[i,j])
-                alpha_mean_entropy[i - 1, j, element] += limiting_factor_x_matrix[i,j]
-                alpha_mean_entropy[i, j, element] += limiting_factor_x_matrix[i,j]
+                                                       limiting_factor_x_matrix[i, j])
+                alpha_entropy[i, j, element] = min(alpha_entropy[i, j, element],
+                                                   limiting_factor_x_matrix[i, j])
+                alpha_mean_entropy[i - 1, j, element] += limiting_factor_x_matrix[i, j]
+                alpha_mean_entropy[i, j, element] += limiting_factor_x_matrix[i, j]
             end
         end
-        
+
         #analogues for y-direction:
         #a_vector from ax<=b:
-        a_matrix_y = zeros(length(weights),length(weights)+1)
+        a_matrix_y = zeros(length(weights), length(weights) + 1)
         b_y = 0.0
         for j in 2:nnodes(dg), i in eachnode(dg)
             antidiffusive_flux_local = get_node_vars(antidiffusive_flux2_L, equations,
                                                      dg,
                                                      i, j, element)
             u_local = get_node_vars(u, equations, dg, i, j, element)
-            u_local_m1 = get_node_vars(u, equations, dg, i, j -1 , element)
+            u_local_m1 = get_node_vars(u, equations, dg, i, j - 1, element)
 
             # Using mathematic entropy
             v_local = cons2entropy(u_local, equations)
             v_local_m1 = cons2entropy(u_local_m1, equations)
 
             # Compute a value
-            a_matrix_y[i, j -1 ] = dot(v_local_m1 - v_local, antidiffusive_flux_local) 
+            a_matrix_y[i, j - 1] = dot(v_local_m1 - v_local, antidiffusive_flux_local)
 
             # Compute b values
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
@@ -1914,56 +1918,60 @@ end
 
             psi_local = dot(v_local, f_local) - q_local
             psi_local *= weights[i]
-            
+
             b_y += psi_local
         end
 
-        a_vector_y = zeros(length(weights)*(length(weights)+1))
-        i=1
-        j=1
-        k=1
-        while k<=length(weights)
-            while j <= (length(weights)+1)
-                a_vector_y[i]=a_matrix_y[k,j]
-                i=i+1
-                j=j+1
+        a_vector_y = zeros(length(weights) * (length(weights) + 1))
+        i = 1
+        j = 1
+        k = 1
+        while k <= length(weights)
+            while j <= (length(weights) + 1)
+                a_vector_y[i] = a_matrix_y[k, j]
+                i = i + 1
+                j = j + 1
             end
-            k=k+1
-            j=1
+            k = k + 1
+            j = 1
         end
         #d_y = dot(v, volume_contribution)
         #b = dot(dot(ones(length(weights)),B_y),psi_y)-dot(ones(length(weights)),d_y)
         #boundary given by convex limiter (at the moment it`s` set trivially to 1):
-        U = ones(length(weights)*(length(weights)+1)) 
+        U = ones(length(weights) * (length(weights) + 1))
         #tolerance for calculating during greedy algorithm (floating point precision):
         epsilon = 10^(-14)
         #calculating limiting factors given by a linear program:
-        limiting_factor_y = greedy_algorithm_for_knapsack(a_vector_y,b_y,U,epsilon)
+        limiting_factor_y = greedy_algorithm_for_knapsack(a_vector_y, b_y, U, epsilon)
         #change limiting_factor_y vektor into matrixnotation:
-        limiting_factor_y_matrix = zeros(length(weights),length(weights)+1)
-        i=1
-        k=1
-        for j in 1:((length(weights)+1)*length(weights))
-            limiting_factor_y_matrix[i,k]=limiting_factor_y[j]
-            k=k+1
-            if mod(j,length(weights)+1) == 0
-                i=i+1
-                k=1
+        limiting_factor_y_matrix = zeros(length(weights), length(weights) + 1)
+        i = 1
+        k = 1
+        for j in 1:((length(weights) + 1) * length(weights))
+            limiting_factor_y_matrix[i, k] = limiting_factor_y[j]
+            k = k + 1
+            if mod(j, length(weights) + 1) == 0
+                i = i + 1
+                k = 1
             end
         end
         #calculate the antidiffusive flux as combination of high and low order:
         for j in 2:nnodes(dg), i in eachnode(dg)
             for v in 1:nvariables(equations)
-                antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,j-1]* antidiffusive_flux2_L[v, i, j, element]
+                antidiffusive_flux2_L[v, i, j, element] = limiting_factor_y_matrix[i,
+                                                                                   j - 1] *
+                                                          antidiffusive_flux2_L[v, i, j,
+                                                                                element]
             end
             # Save limiting factor for plotting/statistics
             if limiter.Plotting
                 (; alpha_entropy, alpha_mean_entropy) = limiter.cache.subcell_limiter_coefficients
                 alpha_entropy[i, j - 1, element] = min(alpha_entropy[i, j - 1, element],
-                                                        limiting_factor_y_matrix[i,j])
-                alpha_entropy[i, j, element] = min(alpha_entropy[i, j, element], limiting_factor_y_matrix[i,j])
-                alpha_mean_entropy[i, j - 1, element] += limiting_factor_y_matrix[i,j]
-                alpha_mean_entropy[i, j, element] += limiting_factor_y_matrix[i,j]
+                                                       limiting_factor_y_matrix[i, j])
+                alpha_entropy[i, j, element] = min(alpha_entropy[i, j, element],
+                                                   limiting_factor_y_matrix[i, j])
+                alpha_mean_entropy[i, j - 1, element] += limiting_factor_y_matrix[i, j]
+                alpha_mean_entropy[i, j, element] += limiting_factor_y_matrix[i, j]
             end
         end
         # Rescale saved limitier factors

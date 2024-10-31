@@ -94,7 +94,7 @@ function initialize!(cb::DiscreteCallback{Condition, Affect!}, u_ode, t, integra
             if limiter.positivity_limiter_pressure
                 print(f, ", alpha_min_pressure, alpha_avg_pressure")
             end
-            if limiter.entropy_limiter_semidiscrete
+            if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
                 print(f, ", alpha_min_entropy, alpha_avg_entropy")
             end
             println(f)
@@ -175,7 +175,7 @@ end
         if limiter.positivity_limiter_pressure
             print(f, ", ", minimum(alpha_pressure), ", ", alpha_min_avg[n_vars + 1])
         end
-        if limiter.entropy_limiter_semidiscrete
+        if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
             k = n_vars + limiter.positivity_limiter_pressure + 1
             print(f, ", ", minimum(alpha_entropy), ", ", alpha_min_avg[k])
         end
@@ -191,7 +191,7 @@ end
             print(f, ", ", minimum(alpha_mean_pressure), ", ",
                   alpha_mean_avg[n_vars + 1])
         end
-        if limiter.entropy_limiter_semidiscrete
+        if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
             k = n_vars + limiter.positivity_limiter_pressure + 1
             print(f, ", ", minimum(alpha_mean_entropy), ", ", alpha_mean_avg[k])
         end
