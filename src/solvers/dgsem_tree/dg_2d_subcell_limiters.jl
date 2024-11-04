@@ -1777,15 +1777,7 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            if i != 2
-                b_x -= dot(v_local_m1 - v_local, fstar1[:, i, j])
-            end
-        end
-        #compute b_x values (corrected)
-        for j in eachnode(dg)
-            u_local = get_node_vars(u, equations, dg, nnodes(dg)-1, j, element)
-            v_local = cons2entropy(u_local, equations)
-            b_x -= dot(v_local, fstar1[:, nnodes(dg)-1, j])
+            b_x -= dot(v_local_m1 - v_local, weights[j]*fstar1[:, i, j])
         end
         # Compute boundary contribution for b
         for j in eachnode(dg)
@@ -1897,15 +1889,7 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            if j != 2
-                b_y -= dot(v_local_m1 - v_local, fstar2[:, i, j])
-            end
-        end
-        #compute b_y values (corrected)
-        for i in eachnode(dg)
-            u_local = get_node_vars(u, equations, dg, i, nnodes(dg)-1, element)
-            v_local = cons2entropy(u_local, equations)
-            b_y -= dot(v_local, fstar2[:, i, nnodes(dg)-1])
+            b_y -= dot(v_local_m1 - v_local, weights[i]*fstar2[:, i, j])
         end
         # Compute boundary contribution for b
         for i in eachnode(dg)
