@@ -1777,7 +1777,13 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            b_x += dot(v_local_m1 - v_local, fstar1[:, i, j])
+            b_x -= dot(v_local_m1 - v_local, fstar1[:, i, j])
+        end
+        #compute b_x values
+        for j in eachnode(dg)
+            u_local = get_node_vars(u, equations, dg, nnodes(dg), j, element)
+            v_local = cons2entropy(u_local, equations)
+            b_x -= dot(v_local, fstar1[:, nnodes(dg), j])
         end
         # Compute boundary contribution for b
         for j in eachnode(dg)
@@ -1808,7 +1814,7 @@ end
 
             b_x += psi_local
         end
-
+        
         # for i in eachnode(dg), j in 1:(length(weights)+1)
         #     a_matrix[i,j] = dot(v[i,j] - v[i+1,j], fhat1_high_L[i+1,j]-fstar1_low_L[i+1,j])
         # end
@@ -1889,9 +1895,14 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            b_y += dot(v_local_m1 - v_local, fstar2[:, i, j])
+            b_y -= dot(v_local_m1 - v_local, fstar2[:, i, j])
         end
-
+        #compute b_y values
+        for i in eachnode(dg)
+            u_local = get_node_vars(u, equations, dg, i, nnodes(dg), element)
+            v_local = cons2entropy(u_local, equations)
+            b_y -= dot(v_local, fstar2[:, i, nnodes(dg)])
+        end
         # Compute boundary contribution for b
         for i in eachnode(dg)
             j = 1
@@ -2188,6 +2199,12 @@ end
         s += a[j] * x[j]
     end
     if s <= b
+        print("s: ")
+        print(s)
+        print(" , ")
+        print("b: ")
+        print(b)
+        print("stop ,")
         return x
     end
     for i in 1:length(a)
