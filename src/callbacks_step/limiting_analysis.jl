@@ -88,6 +88,9 @@ function initialize!(cb::DiscreteCallback{Condition, Affect!}, u_ode, t, integra
 
     mkpath(output_directory)
     for file in ["alphas_min.txt", "alphas_mean.txt"]
+        if isfile("$output_directory/$file")
+            rm("$output_directory/$file")
+        end
         open("$output_directory/$file", "a") do f
             print(f, "# iter, simu_time",
                   join(", alpha_min_$v, alpha_avg_$v" for v in vars))

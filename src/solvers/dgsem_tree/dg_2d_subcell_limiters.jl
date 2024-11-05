@@ -1771,13 +1771,13 @@ end
             v_local_m1 = cons2entropy(u_local_m1, equations)
 
             # Compute a value
-            a_matrix_x[i - 1, j] = dot(v_local_m1 - v_local, antidiffusive_flux_local)
+            a_matrix_x[i - 1, j] = dot(v_local_m1 - v_local, weights[j]*antidiffusive_flux_local)
 
             # Compute b_x values
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            b_x -= dot(v_local_m1 - v_local, fstar1[:, i, j])
+            b_x -= dot(v_local_m1 - v_local, weights[j]*fstar1[:, i, j])
         end
         # Compute boundary contribution for b
         for j in eachnode(dg)
@@ -1883,12 +1883,12 @@ end
             v_local_m1 = cons2entropy(u_local_m1, equations)
 
             # Compute a value
-            a_matrix_y[i, j - 1] = dot(v_local_m1 - v_local, antidiffusive_flux_local)
+            a_matrix_y[i, j - 1] = dot(v_local_m1 - v_local, weights[i]*antidiffusive_flux_local)
             # Compute b values
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            b_y -= dot(v_local_m1 - v_local, fstar2[:, i, j])
+            b_y -= dot(v_local_m1 - v_local, weights[i]*fstar2[:, i, j])
         end
         # Compute boundary contribution for b
         for i in eachnode(dg)
