@@ -1777,7 +1777,7 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            b_x -= dot(v_local_m1 - v_local, weights[j]*fstar1[:, i, j])
+            b_x += dot(v_local_m1 - v_local, weights[j]*fstar1[:, i, j])
         end
         # Compute boundary contribution for b
         for j in eachnode(dg)
@@ -1888,7 +1888,7 @@ end
             # f_star1 = (fstar1_L[:, i + 1, j] - fstar1_R[:, i, j]) 
             # 1*d_x_L = dot(v_local-v_local_m1, fstar1[:, i, j])
             # -1*d_x_L = dot(v_local_m1-v_local,fstar1[:, i, j])
-            b_y -= dot(v_local_m1 - v_local, weights[i]*fstar2[:, i, j])
+            b_y += dot(v_local_m1 - v_local, weights[i]*fstar2[:, i, j])
         end
         # Compute boundary contribution for b
         for i in eachnode(dg)
@@ -2185,10 +2185,12 @@ end
     for j in 1:length(a)
         s += a[j] * x[j]
     end
+    
     if s <= b
         return x
     end
-    for i in 1:length(a)
+    
+    for i in length(a):-1:1
         if a[i] < epsilon
             break
         end
@@ -2200,6 +2202,7 @@ end
             x[i] = 0
         end
     end
+    
     return x[inverse_permutation]
 end
 end # @muladd
