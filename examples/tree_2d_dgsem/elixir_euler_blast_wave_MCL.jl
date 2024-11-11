@@ -35,7 +35,7 @@ function initial_condition_blast_wave(x, t, equations::CompressibleEulerEquation
 end
 initial_condition = initial_condition_blast_wave
 
-surface_flux = flux_ranocha # flux_lax_friedrichs
+surface_flux = flux_ranocha
 volume_flux = flux_ranocha
 basis = LobattoLegendreBasis(3)
 limiter_mcl = SubcellLimiterMCL(equations, basis;
@@ -46,19 +46,19 @@ limiter_mcl = SubcellLimiterMCL(equations, basis;
                                 positivity_limiter_density = false, #true
                                 positivity_limiter_pressure = false, #true
                                 positivity_limiter_pressure_exact = false,
-                                lin_chan_limiter = true, #false
-                                entropy_limiter_semidiscrete = false, #true
+                                lin_chan_limiter = false, #false
+                                entropy_limiter_semidiscrete = true, #true
                                 smoothness_indicator = false, #true
                                 Plotting = true)
 volume_integral = VolumeIntegralSubcellLimiting(limiter_mcl;
                                                 volume_flux_dg = volume_flux,
-                                                volume_flux_fv = surface_flux)
+                                                volume_flux_fv = flux_lax_friedrichs)
 solver = DGSEM(basis, surface_flux, volume_integral)
 
 coordinates_min = (-2.0, -2.0)
 coordinates_max = (2.0, 2.0)
 mesh = TreeMesh(coordinates_min, coordinates_max,
-                initial_refinement_level = 6,
+                initial_refinement_level = 6, #6
                 n_cells_max = 10_000)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
