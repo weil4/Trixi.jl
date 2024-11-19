@@ -35,8 +35,9 @@ function initial_condition_blast_wave(x, t, equations::CompressibleEulerEquation
 end
 initial_condition = initial_condition_blast_wave
 
-surface_flux = flux_ranocha
-volume_flux = flux_ranocha
+# This combination produces entropy with lin_chan_limiter = false, and dissipates with lin_chan_limiter = true
+surface_flux = flux_ranocha # flux_lax_friedrichs
+volume_flux = flux_central
 basis = LobattoLegendreBasis(3)
 limiter_mcl = SubcellLimiterMCL(equations, basis;
                                 density_limiter = false, #true
@@ -46,19 +47,19 @@ limiter_mcl = SubcellLimiterMCL(equations, basis;
                                 positivity_limiter_density = false, #true
                                 positivity_limiter_pressure = false, #true
                                 positivity_limiter_pressure_exact = false,
-                                lin_chan_limiter = false, #false
-                                entropy_limiter_semidiscrete = true, #true
+                                lin_chan_limiter = true, #false
+                                entropy_limiter_semidiscrete = false, #true
                                 smoothness_indicator = false, #true
                                 Plotting = true)
 volume_integral = VolumeIntegralSubcellLimiting(limiter_mcl;
                                                 volume_flux_dg = volume_flux,
-                                                volume_flux_fv = flux_lax_friedrichs)
+                                                volume_flux_fv = flux_lax_friedrichs) # surface_flux
 solver = DGSEM(basis, surface_flux, volume_integral)
 
 coordinates_min = (-2.0, -2.0)
 coordinates_max = (2.0, 2.0)
 mesh = TreeMesh(coordinates_min, coordinates_max,
-                initial_refinement_level = 6, #6
+                initial_refinement_level = 1,
                 n_cells_max = 10_000)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
@@ -71,7 +72,7 @@ ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
 
-analysis_interval = 100
+analysis_interval = 10
 #analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
 analysis_callback = AnalysisCallback(semi, interval = analysis_interval, save_analysis=true, 
                                      output_directory="out", analysis_filename="analysis.dat", extra_analysis_integrals = (entropy, ))

@@ -280,6 +280,7 @@ end
                       positivity_limiter_pressure_exact = true,
                       positivity_limiter_density = false,
                       positivity_limiter_correction_factor = 0.0,
+                      lin_chan_limiter = false,
                       entropy_limiter_semidiscrete = false,
                       smoothness_indicator = false,
                       threshold_smoothness_indicator = 0.1,
@@ -326,6 +327,7 @@ struct SubcellLimiterMCL{RealT <: Real, Cache, Indicator} <: AbstractSubcellLimi
     positivity_limiter_pressure_exact::Bool # Only for positivity_limiter_pressure=true: Use the sharp calculation of factor
     positivity_limiter_density::Bool        # Impose positivity for cons(1)
     positivity_limiter_correction_factor::RealT  # Correction Factor for positivity_limiter_density in [0,1)
+    lin_chan_limiter::Bool                  # Lin Chan entropy Limiter
     entropy_limiter_semidiscrete::Bool      # synchronized semidiscrete entropy fix
     smoothness_indicator::Bool              # activates smoothness indicator: IndicatorHennemannGassner
     threshold_smoothness_indicator::RealT   # threshold for smoothness indicator
@@ -343,12 +345,16 @@ function SubcellLimiterMCL(equations::AbstractEquations, basis;
                            positivity_limiter_pressure_exact = true,
                            positivity_limiter_density = false,
                            positivity_limiter_correction_factor = 0.0,
+                           lin_chan_limiter = false,
                            entropy_limiter_semidiscrete = false,
                            smoothness_indicator = false,
                            threshold_smoothness_indicator = 0.1,
                            variable_smoothness_indicator = density_pressure,
                            Plotting = true)
     if sequential_limiter && conservative_limiter
+        error("Only one of the two can be selected: sequential_limiter/conservative_limiter")
+    end
+    if lin_chan_limiter && entropy_limiter_semidiscrete
         error("Only one of the two can be selected: sequential_limiter/conservative_limiter")
     end
     cache = create_cache(SubcellLimiterMCL, equations, basis,
@@ -367,6 +373,7 @@ function SubcellLimiterMCL(equations::AbstractEquations, basis;
                                            positivity_limiter_pressure_exact,
                                            positivity_limiter_density,
                                            positivity_limiter_correction_factor,
+                                           lin_chan_limiter,
                                            entropy_limiter_semidiscrete,
                                            smoothness_indicator,
                                            threshold_smoothness_indicator, IndicatorHG,
@@ -456,7 +463,7 @@ function get_node_variables!(node_variables, limiter::SubcellLimiterMCL,
         node_variables[:alpha_pressure] = alpha_pressure
     end
 
-    if limiter.entropy_limiter_semidiscrete
+    if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
         @unpack alpha_entropy = limiter.cache.subcell_limiter_coefficients
         node_variables[:alpha_entropy] = alpha_entropy
     end
@@ -472,7 +479,7 @@ function get_node_variables!(node_variables, limiter::SubcellLimiterMCL,
         node_variables[:alpha_mean_pressure] = alpha_mean_pressure
     end
 
-    if limiter.entropy_limiter_semidiscrete
+    if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
         @unpack alpha_mean_entropy = limiter.cache.subcell_limiter_coefficients
         node_variables[:alpha_mean_entropy] = alpha_mean_entropy
     end

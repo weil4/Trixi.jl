@@ -48,10 +48,12 @@ function analyze_coefficient_MCL(mesh::TreeMesh2D, equations, dg, cache, limiter
 
     alpha_avg = zeros(eltype(alpha),
                       n_vars + limiter.positivity_limiter_pressure +
-                      limiter.entropy_limiter_semidiscrete)
+                      Int(limiter.entropy_limiter_semidiscrete ||
+                          limiter.lin_chan_limiter))
     alpha_mean_avg = zeros(eltype(alpha),
                            n_vars + limiter.positivity_limiter_pressure +
-                           limiter.entropy_limiter_semidiscrete)
+                           Int(limiter.entropy_limiter_semidiscrete ||
+                               limiter.lin_chan_limiter))
     total_volume = zero(eltype(alpha))
 
     for element in eachelement(dg, cache)
@@ -69,7 +71,7 @@ function analyze_coefficient_MCL(mesh::TreeMesh2D, equations, dg, cache, limiter
                 alpha_mean_avg[n_vars + 1] += jacobian * weights[i] * weights[j] *
                                               alpha_mean_pressure[i, j, element]
             end
-            if limiter.entropy_limiter_semidiscrete
+            if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
                 k = n_vars + limiter.positivity_limiter_pressure + 1
                 alpha_avg[k] += jacobian * weights[i] * weights[j] *
                                 alpha_entropy[i, j, element]
@@ -93,10 +95,12 @@ function analyze_coefficient_MCL(mesh::StructuredMesh{2}, equations, dg, cache,
 
     alpha_avg = zeros(eltype(alpha),
                       n_vars + limiter.positivity_limiter_pressure +
-                      limiter.entropy_limiter_semidiscrete)
+                      Int(limiter.entropy_limiter_semidiscrete ||
+                          limiter.lin_chan_limiter))
     alpha_mean_avg = zeros(eltype(alpha),
                            n_vars + limiter.positivity_limiter_pressure +
-                           limiter.entropy_limiter_semidiscrete)
+                           Int(limiter.entropy_limiter_semidiscrete ||
+                               limiter.lin_chan_limiter))
     total_volume = zero(eltype(alpha))
 
     for element in eachelement(dg, cache)
@@ -114,7 +118,7 @@ function analyze_coefficient_MCL(mesh::StructuredMesh{2}, equations, dg, cache,
                 alpha_mean_avg[n_vars + 1] += jacobian * weights[i] * weights[j] *
                                               alpha_mean_pressure[i, j, element]
             end
-            if limiter.entropy_limiter_semidiscrete
+            if limiter.entropy_limiter_semidiscrete || limiter.lin_chan_limiter
                 k = n_vars + limiter.positivity_limiter_pressure + 1
                 alpha_avg[k] += jacobian * weights[i] * weights[j] *
                                 alpha_entropy[i, j, element]
